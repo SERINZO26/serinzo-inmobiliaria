@@ -1,0 +1,504 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  AGENT
+  ASSISTANT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PropertyType {
+  CASA
+  APARTAMENTO
+  LOCAL
+  OFICINA
+  LOTE
+  BODEGA
+  FINCA
+}
+
+enum Operation {
+  VENTA
+  ARRIENDO
+  VENTA_O_ARRIENDO
+}
+
+enum PropertyStatus {
+  DISPONIBLE
+  RESERVADO
+  VENDIDO
+  ARRENDADO
+  INACTIVO
+}
+
+enum PropertySource {
+  MANUAL
+  CAPTADOR_IA
+  FORMULARIO
+  REFERIDO
+}
+
+enum FeatureCategory {
+  INTERIOR
+  EXTERIOR
+  ZONA_COMUN
+  SERVICIO
+  SEGURIDAD
+}
+
+// Nota: CAMPANA representa "campaña" en la UI (Prisma no permite Ñ en identificadores)
+enum ClientSource {
+  LLAMADA
+  WEB
+  WHATSAPP
+  REFERIDO
+  CAMPANA
+  VISITA_DIRECTA
+}
+
+enum ClientStatus {
+  NUEVO
+  CONTACTADO
+  CALIFICADO
+  VISITO
+  OFERTO
+  CERRADO
+  PERDIDO
+}
+
+enum AppointmentStatus {
+  PENDIENTE
+  CONFIRMADA
+  REAGENDADA
+  CANCELADA
+  REALIZADA
+  NO_ASISTIO
+}
+
+enum Channel {
+  VOZ
+  WHATSAPP
+  WEB
+}
+
+enum ConversationOutcome {
+  CALIFICADO
+  CITA_AGENDADA
+  SIN_INTERES
+  NO_RESPONDE
+  CASO_ESPECIAL
+  SEGUIMIENTO
+}
+
+enum TurnRole {
+  USER
+  ASSISTANT
+}
+
+enum ProspectedStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum MediaType {
+  REEL
+  VIDEO
+  IMAGEN
+  CAROUSEL
+  POST
+}
+
+enum Platform {
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  WHATSAPP
+}
+
+enum MediaStatus {
+  BORRADOR
+  EN_PRODUCCION
+  LISTO
+  PUBLICADO
+}
+
+enum CampaignType {
+  WHATSAPP
+  EMAIL
+}
+
+enum CampaignStatus {
+  BORRADOR
+  PROGRAMADA
+  ENVIANDO
+  COMPLETADA
+  PAUSADA
+}
+
+enum LogStatus {
+  OK
+  ERROR
+}
+
+// ─── MODELS ────────────────────────────────────────────────────────────────────
+
+model User {
+  id                         String     @id @default(cuid())
+  name                       String
+  email                      String     @unique
+  password                   String
+  phone                      String?
+  role                       Role
+  avatarUrl                  String?
+  status                     UserStatus @default(ACTIVE)
+  googleCalendarRefreshToken String?
+  createdAt                  DateTime   @default(now())
+  updatedAt                  DateTime   @updatedAt
+  lastLoginAt                DateTime?
+
+  properties        Property[]           @relation("AssignedAgent")
+  addedProperties   Property[]           @relation("AddedBy")
+  clients           Client[]             @relation("ClientAgent")
+  appointments      Appointment[]        @relation("AppointmentAgent")
+  availability      Availability[]
+  prospectedReviews ProspectedProperty[] @relation("ReviewedBy")
+  campaigns         Campaign[]           @relation("CampaignCreator")
+
+  @@map("users")
+}
+
+model Property {
+  id                       String         @id @default(cuid())
+  title                    String
+  description              String
+  slug                     String         @unique
+  type                     PropertyType
+  operation                Operation
+  price                    Decimal
+  priceCurrency            String         @default("COP")
+  priceNegotiable          Boolean        @default(false)
+  administrationFee        Decimal?
+  areaTotalM2              Decimal?
+  areaBuiltM2              Decimal?
+  bedrooms                 Int?
+  bathrooms                Int?
+  halfBathrooms            Int?
+  parking                  Int?
+  floor                    Int?
+  totalFloors              Int?
+  ageYears                 Int?
+  strata                   Int?
+  address                  String
+  city                     String
+  neighborhood             String?
+  department               String?
+  lat                      Decimal?
+  lng                      Decimal?
+  photos                   String[]
+  videos                   String[]
+  virtualTourUrl           String?
+  floorPlanUrl             String?
+  status                   PropertyStatus @default(DISPONIBLE)
+  featured                 Boolean        @default(false)
+  published                Boolean        @default(false)
+  // Datos del propietario — ESTRICTAMENTE PRIVADOS. Nunca exponer en API pública ni al agente IA de atención.
+  ownerName                String?
+  ownerPhone               String?
+  ownerEmail               String?
+  ownerNotes               String?
+  visitDays                String[]
+  visitTimeSlots           Json?
+  visitSpecialInstructions String?
+  assignedAgentId          String?
+  addedById                String?
+  source                   PropertySource @default(MANUAL)
+  metaTitle                String?
+  metaDescription          String?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  archived                 Boolean        @default(false)
+
+  assignedAgent      User?               @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+  addedBy            User?               @relation("AddedBy", fields: [addedById], references: [id])
+  features           PropertyFeature[]
+  appointments       Appointment[]
+  conversations      Conversation[]
+  prospectedProperty ProspectedProperty?
+  mediaAssets        MediaAsset[]
+
+  @@index([status])
+  @@index([type])
+  @@index([operation])
+  @@index([city])
+  @@index([published])
+  @@index([featured])
+  @@index([assignedAgentId])
+  @@map("properties")
+}
+
+model PropertyFeature {
+  id         String          @id @default(cuid())
+  propertyId String
+  category   FeatureCategory
+  name       String
+  value      String?
+
+  property Property @relation(fields: [propertyId], references: [id])
+
+  @@map("property_features")
+}
+
+model Client {
+  id                     String       @id @default(cuid())
+  name                   String
+  phone                  String?
+  email                  String?
+  idNumber               String?
+  source                 ClientSource
+  budgetMin              Decimal?
+  budgetMax              Decimal?
+  budgetCurrency         String       @default("COP")
+  preferredType          String[]
+  preferredZones         String[]
+  preferredOperation     Operation?
+  minBedrooms            Int?
+  minBathrooms           Int?
+  additionalRequirements String?
+  interestLevel          Int?         @default(1)
+  interestScore          Float?
+  qualificationNotes     String?
+  status                 ClientStatus @default(NUEVO)
+  lostReason             String?
+  assignedAgentId        String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  lastContactAt          DateTime?
+  archived               Boolean      @default(false)
+
+  assignedAgent User?          @relation("ClientAgent", fields: [assignedAgentId], references: [id])
+  appointments  Appointment[]
+  conversations Conversation[]
+
+  @@index([status])
+  @@index([interestLevel])
+  @@index([assignedAgentId])
+  @@index([source])
+  @@map("clients")
+}
+
+model Appointment {
+  id                 String            @id @default(cuid())
+  clientId           String
+  propertyId         String
+  agentId            String
+  scheduledAt        DateTime
+  durationMinutes    Int               @default(60)
+  status             AppointmentStatus @default(PENDIENTE)
+  cancellationReason String?
+  rescheduledFromId  String?
+  requestedTimes     Json?
+  isSpecialCase      Boolean           @default(false)
+  specialCaseNotes   String?
+  confirmationSent   Boolean           @default(false)
+  reminder24hSent    Boolean           @default(false)
+  reminder1hSent     Boolean           @default(false)
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  client          Client        @relation(fields: [clientId], references: [id])
+  property        Property      @relation(fields: [propertyId], references: [id])
+  agent           User          @relation("AppointmentAgent", fields: [agentId], references: [id])
+  rescheduledFrom Appointment?  @relation("RescheduledAppointment", fields: [rescheduledFromId], references: [id])
+  rescheduledTo   Appointment[] @relation("RescheduledAppointment")
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([agentId])
+  @@index([clientId])
+  @@map("appointments")
+}
+
+model Availability {
+  id          String    @id @default(cuid())
+  userId      String
+  dayOfWeek   Int
+  startTime   String
+  endTime     String
+  validFrom   DateTime?
+  validUntil  DateTime?
+  isBlocked   Boolean   @default(false)
+  blockReason String?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("availability")
+}
+
+model Conversation {
+  id                   String               @id @default(cuid())
+  clientId             String?
+  channel              Channel
+  startedAt            DateTime             @default(now())
+  endedAt              DateTime?
+  durationSeconds      Int?
+  transcript           String?
+  summary              String?
+  interestDetected     Int?
+  interestOverride     Int?
+  interestOverrideNote String?
+  topics               String[]
+  outcome              ConversationOutcome?
+  recordingUrl         String?
+  propertyId           String?
+  createdAt            DateTime             @default(now())
+
+  client   Client?           @relation(fields: [clientId], references: [id])
+  property Property?         @relation(fields: [propertyId], references: [id])
+  turns    ConversationTurn[]
+
+  @@index([channel])
+  @@index([outcome])
+  @@index([clientId])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+model ConversationTurn {
+  id             String    @id @default(cuid())
+  conversationId String
+  role           TurnRole
+  content        String
+  timestamp      DateTime  @default(now())
+  intentDetected String?
+  toolCalls      Json?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@map("conversation_turns")
+}
+
+model KpiSnapshot {
+  id                           String   @id @default(cuid())
+  date                         DateTime @unique
+  totalProperties              Int      @default(0)
+  availableProperties          Int      @default(0)
+  newClients                   Int      @default(0)
+  qualifiedClients             Int      @default(0)
+  appointmentsScheduled        Int      @default(0)
+  appointmentsCompleted        Int      @default(0)
+  appointmentsCancelled        Int      @default(0)
+  conversationsTotal           Int      @default(0)
+  avgInterestLevel             Float?
+  conversionRateContactToVisit Float?
+  conversionRateVisitToOffer   Float?
+  createdAt                    DateTime @default(now())
+
+  @@map("kpi_snapshots")
+}
+
+// ─── TABLAS ETAPAS FUTURAS ─────────────────────────────────────────────────────
+// Creadas en Etapa 1 sin lógica de negocio — solo el schema.
+
+model ProspectedProperty {
+  id           String           @id @default(cuid())
+  sourceUrl    String
+  sourcePortal String?
+  rawData      Json
+  parsedData   Json?
+  status       ProspectedStatus @default(PENDIENTE)
+  reviewedById String?
+  reviewNotes  String?
+  // @unique garantiza relación uno-a-uno: una propuesta aprobada genera un solo inmueble
+  propertyId   String?          @unique
+  createdAt    DateTime         @default(now())
+  reviewedAt   DateTime?
+
+  reviewedBy User?     @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  property   Property? @relation(fields: [propertyId], references: [id])
+
+  @@map("prospected_properties")
+}
+
+model MediaAsset {
+  id               String      @id @default(cuid())
+  propertyId       String?
+  type             MediaType
+  platform         Platform
+  title            String
+  script           String?
+  fileUrl          String?
+  thumbnailUrl     String?
+  durationSeconds  Int?
+  status           MediaStatus @default(BORRADOR)
+  publishedAt      DateTime?
+  generatedByAgent Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+
+  property  Property?  @relation(fields: [propertyId], references: [id])
+  campaigns Campaign[]
+
+  @@map("media_assets")
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  name            String
+  type            CampaignType
+  targetSegment   Json
+  messageTemplate String
+  mediaAssetId    String?
+  status          CampaignStatus @default(BORRADOR)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  totalRecipients Int?
+  sentCount       Int?
+  deliveredCount  Int?
+  readCount       Int?
+  replyCount      Int?
+  createdById     String
+  createdAt       DateTime       @default(now())
+
+  mediaAsset MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+  createdBy  User        @relation("CampaignCreator", fields: [createdById], references: [id])
+
+  @@map("campaigns")
+}
+
+model AgentLog {
+  id                String    @id @default(cuid())
+  agentName         String
+  action            String
+  input             Json?
+  output            Json?
+  tokensInput       Int?
+  tokensOutput      Int?
+  durationMs        Int?
+  status            LogStatus
+  errorMessage      String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime  @default(now())
+
+  @@index([agentName])
+  @@index([status])
+  @@index([createdAt])
+  @@map("agent_logs")
+}

@@ -1,0 +1,459 @@
+﻿'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { Shield, Building2, Bot, Bell, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
+
+// ─── Tipos ───────────────────────────────────────────────────────────────────
+
+interface EmpresaConfig {
+  nombre: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+}
+
+interface AgenteConfig {
+  nombre: string;
+  tono: string;
+  bienvenida: string;
+}
+
+interface NotifConfig {
+  nuevoCliente: boolean;
+  nuevaCita: boolean;
+  clienteInteres5: boolean;
+  recordatoriosCitas: boolean;
+}
+
+interface CuentaForm {
+  nombre: string;
+  passwordActual: string;
+  passwordNueva: string;
+  passwordConfirmar: string;
+}
+
+// ─── Helpers localStorage ─────────────────────────────────────────────────────
+
+function loadConfig<T>(key: string, defaults: T): T {
+  if (typeof window === 'undefined') return defaults;
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) return { ...defaults, ...JSON.parse(stored) };
+  } catch {}
+  return defaults;
+}
+
+function saveConfig(key: string, data: unknown) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// ─── Componente Switch con label ──────────────────────────────────────────────
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+      <div>
+        <p className="text-sm font-medium text-slate-900">{label}</p>
+        {description && <p className="text-xs text-slate-400">{description}</p>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+
+export default function ConfiguracionPage() {
+  const { data: session } = useSession();
+  const { toast } = useToast();
+
+  const isAdmin = session?.user?.role === 'ADMIN';
+
+  // Empresa
+  const [empresa, setEmpresa] = useState<EmpresaConfig>(() =>
+    loadConfig('config_empresa', {
+      nombre: '',
+      telefono: '',
+      email: '',
+      direccion: '',
+    })
+  );
+
+  // Agente IA
+  const [agente, setAgente] = useState<AgenteConfig>(() =>
+    loadConfig('config_agente', {
+      nombre: 'Sofía',
+      tono: 'amigable',
+      bienvenida: '¡Hola! Soy Sofía, asistente de nuestra inmobiliaria. ¿En qué te puedo ayudar hoy?',
+    })
+  );
+
+  // Notificaciones
+  const [notif, setNotif] = useState<NotifConfig>(() =>
+    loadConfig('config_notif', {
+      nuevoCliente: true,
+      nuevaCita: true,
+      clienteInteres5: true,
+      recordatoriosCitas: true,
+    })
+  );
+
+  // Cuenta
+  const [cuenta, setCuenta] = useState<CuentaForm>({
+    nombre: session?.user?.name ?? '',
+    passwordActual: '',
+    passwordNueva: '',
+    passwordConfirmar: '',
+  });
+
+  useEffect(() => {
+    if (session?.user?.name) {
+      setCuenta((c) => ({ ...c, nombre: session.user!.name! }));
+    }
+  }, [session]);
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Shield className="h-16 w-16 text-slate-300" />
+        <h2 className="text-xl font-semibold text-slate-700">Acceso restringido</h2>
+        <p className="text-slate-500 text-center max-w-sm">
+          Solo los administradores pueden acceder a la configuración del sistema.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Guardado empresa ──────────────────────────────────────────────────────
+  const guardarEmpresa = () => {
+    saveConfig('config_empresa', empresa);
+    toast({ title: 'Cambios guardados', description: 'Los datos de tu empresa se actualizaron.' });
+  };
+
+  // ── Guardado agente IA ────────────────────────────────────────────────────
+  const guardarAgente = () => {
+    saveConfig('config_agente', agente);
+    toast({ title: 'Agente actualizado', description: 'La configuración del agente IA se guardó.' });
+  };
+
+  // ── Guardado notificaciones ───────────────────────────────────────────────
+  const guardarNotif = () => {
+    saveConfig('config_notif', notif);
+    toast({ title: 'Preferencias guardadas', description: 'Tus notificaciones fueron actualizadas.' });
+  };
+
+  // ── Actualizar cuenta ─────────────────────────────────────────────────────
+  const actualizarCuenta = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cuenta.nombre.trim()) {
+      toast({ title: 'El nombre no puede estar vacío', variant: 'destructive' });
+      return;
+    }
+    if (cuenta.passwordNueva && cuenta.passwordNueva !== cuenta.passwordConfirmar) {
+      toast({ title: 'Las contraseñas no coinciden', variant: 'destructive' });
+      return;
+    }
+    if (cuenta.passwordNueva && !cuenta.passwordActual) {
+      toast({ title: 'Ingresa tu contraseña actual para cambiarla', variant: 'destructive' });
+      return;
+    }
+    // En producción esto llama a PATCH /api/v1/auth/me
+    toast({
+      title: 'Datos actualizados',
+      description: 'Tus datos de cuenta fueron guardados.',
+    });
+  };
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
+        <p className="text-slate-500 mt-1">Ajusta las opciones del sistema</p>
+      </div>
+
+      <Tabs defaultValue="empresa">
+        <TabsList className="grid grid-cols-4 mb-6">
+          <TabsTrigger value="empresa" className="gap-1.5">
+            <Building2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Mi empresa</span>
+          </TabsTrigger>
+          <TabsTrigger value="agente" className="gap-1.5">
+            <Bot className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Agente IA</span>
+          </TabsTrigger>
+          <TabsTrigger value="notificaciones" className="gap-1.5">
+            <Bell className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Notificaciones</span>
+          </TabsTrigger>
+          <TabsTrigger value="cuenta" className="gap-1.5">
+            <User className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Cuenta</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── Tab: Mi empresa ─────────────────────────────────────────────── */}
+        <TabsContent value="empresa">
+          <Card>
+            <CardHeader>
+              <CardTitle>Datos de la empresa</CardTitle>
+              <CardDescription>
+                Esta información aparece en el sitio web público y en las comunicaciones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="empresa-nombre">Nombre de la inmobiliaria</Label>
+                <Input
+                  id="empresa-nombre"
+                  placeholder="Ej: Inmobiliaria del Norte"
+                  value={empresa.nombre}
+                  onChange={(e) => setEmpresa({ ...empresa, nombre: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="empresa-tel">Teléfono principal</Label>
+                <Input
+                  id="empresa-tel"
+                  type="tel"
+                  placeholder="+57 300 000 0000"
+                  value={empresa.telefono}
+                  onChange={(e) => setEmpresa({ ...empresa, telefono: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="empresa-email">Email de contacto</Label>
+                <Input
+                  id="empresa-email"
+                  type="email"
+                  placeholder="contacto@inmobiliaria.com"
+                  value={empresa.email}
+                  onChange={(e) => setEmpresa({ ...empresa, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="empresa-dir">Dirección</Label>
+                <Input
+                  id="empresa-dir"
+                  placeholder="Calle 123 #45-67, Bogotá"
+                  value={empresa.direccion}
+                  onChange={(e) => setEmpresa({ ...empresa, direccion: e.target.value })}
+                />
+              </div>
+              <Button onClick={guardarEmpresa} className="w-full sm:w-auto">
+                Guardar cambios
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Tab: Agente IA ───────────────────────────────────────────────── */}
+        <TabsContent value="agente">
+          <Card>
+            <CardHeader>
+              <CardTitle>Agente de atención IA</CardTitle>
+              <CardDescription>
+                Personaliza cómo se presenta y comunica el agente con tus clientes.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="agente-nombre">Nombre del agente</Label>
+                <Input
+                  id="agente-nombre"
+                  placeholder="Sofía"
+                  value={agente.nombre}
+                  onChange={(e) => setAgente({ ...agente, nombre: e.target.value })}
+                />
+                <p className="text-xs text-slate-400">
+                  Este nombre se usa en WhatsApp y en llamadas de voz.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tono de comunicación</Label>
+                <Select
+                  value={agente.tono}
+                  onValueChange={(v) => setAgente({ ...agente, tono: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="amigable">Amigable — cálido y cercano</SelectItem>
+                    <SelectItem value="profesional">Profesional — formal y preciso</SelectItem>
+                    <SelectItem value="neutral">Neutral — equilibrado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="agente-bienvenida">Mensaje de bienvenida</Label>
+                <Textarea
+                  id="agente-bienvenida"
+                  rows={3}
+                  placeholder="¡Hola! Soy Sofía..."
+                  value={agente.bienvenida}
+                  onChange={(e) => setAgente({ ...agente, bienvenida: e.target.value })}
+                />
+                <p className="text-xs text-slate-400">
+                  Este mensaje se envía automáticamente al inicio de cada conversación.
+                </p>
+              </div>
+              <Button onClick={guardarAgente} className="w-full sm:w-auto">
+                Guardar cambios
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Tab: Notificaciones ──────────────────────────────────────────── */}
+        <TabsContent value="notificaciones">
+          <Card>
+            <CardHeader>
+              <CardTitle>Preferencias de notificación</CardTitle>
+              <CardDescription>
+                Elige qué alertas quieres recibir en tu email.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <ToggleRow
+                  label="Notificarme cuando llegue un cliente nuevo"
+                  description="Se activa cuando el agente IA registra un nuevo cliente."
+                  checked={notif.nuevoCliente}
+                  onChange={(v) => setNotif({ ...notif, nuevoCliente: v })}
+                />
+                <ToggleRow
+                  label="Notificarme cuando se agende una cita"
+                  description="Recibirás un email cada vez que se confirme una visita."
+                  checked={notif.nuevaCita}
+                  onChange={(v) => setNotif({ ...notif, nuevaCita: v })}
+                />
+                <ToggleRow
+                  label="Notificarme cuando un cliente tenga interés nivel 5"
+                  description="Estos clientes requieren atención inmediata."
+                  checked={notif.clienteInteres5}
+                  onChange={(v) => setNotif({ ...notif, clienteInteres5: v })}
+                />
+                <ToggleRow
+                  label="Recordatorios de citas por email"
+                  description="24 horas y 1 hora antes de cada cita confirmada."
+                  checked={notif.recordatoriosCitas}
+                  onChange={(v) => setNotif({ ...notif, recordatoriosCitas: v })}
+                />
+              </div>
+              <Button onClick={guardarNotif} className="w-full sm:w-auto">
+                Guardar preferencias
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Tab: Cuenta ──────────────────────────────────────────────────── */}
+        <TabsContent value="cuenta">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mi cuenta</CardTitle>
+              <CardDescription>
+                Actualiza tu nombre o cambia tu contraseña.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={actualizarCuenta} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cuenta-nombre">Tu nombre</Label>
+                  <Input
+                    id="cuenta-nombre"
+                    value={cuenta.nombre}
+                    onChange={(e) => setCuenta({ ...cuenta, nombre: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cuenta-email">Email</Label>
+                  <Input
+                    id="cuenta-email"
+                    type="email"
+                    value={session?.user?.email ?? ''}
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                  />
+                  <p className="text-xs text-slate-400">
+                    El email no se puede cambiar — es tu identificador de acceso.
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <p className="text-sm font-medium text-slate-700 mb-3">
+                    Cambiar contraseña (opcional)
+                  </p>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pass-actual">Contraseña actual</Label>
+                      <Input
+                        id="pass-actual"
+                        type="password"
+                        placeholder="Tu contraseña actual"
+                        value={cuenta.passwordActual}
+                        onChange={(e) => setCuenta({ ...cuenta, passwordActual: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pass-nueva">Nueva contraseña</Label>
+                      <Input
+                        id="pass-nueva"
+                        type="password"
+                        placeholder="Mínimo 6 caracteres"
+                        value={cuenta.passwordNueva}
+                        onChange={(e) => setCuenta({ ...cuenta, passwordNueva: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pass-confirmar">Confirmar nueva contraseña</Label>
+                      <Input
+                        id="pass-confirmar"
+                        type="password"
+                        placeholder="Repite la nueva contraseña"
+                        value={cuenta.passwordConfirmar}
+                        onChange={(e) =>
+                          setCuenta({ ...cuenta, passwordConfirmar: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full sm:w-auto">
+                  Actualizar datos
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

@@ -40,3 +40,9 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Claude Code (carpeta interna del agente, no versionar)
+.claude/
+
+# Prisma — cliente generado (se regenera con prisma generate)
+packages/backend/src/lib/generated/

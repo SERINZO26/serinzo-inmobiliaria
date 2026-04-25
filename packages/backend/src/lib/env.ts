@@ -1,0 +1,29 @@
+import { config } from 'dotenv';
+import { z } from 'zod';
+
+// Cargar .env antes de validar
+config();
+
+const envSchema = z.object({
+  DATABASE_URL: z.string().url('DATABASE_URL debe ser una URL válida de PostgreSQL'),
+  API_SECRET: z
+    .string()
+    .min(32, 'API_SECRET debe tener al menos 32 caracteres'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
+  PORT: z.string().default('4000'),
+});
+
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  const errores = parsed.error.errors
+    .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
+    .join('\n');
+  throw new Error(
+    `\n❌ Variables de entorno inválidas:\n${errores}\nVerifica tu archivo .env`
+  );
+}
+
+export const env = parsed.data;

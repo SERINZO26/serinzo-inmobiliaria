@@ -13,6 +13,9 @@
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio"
   },
+  "prisma": {
+    "seed": "node -e \"require('ts-node').register({compilerOptions:{module:'commonjs'}});require('./prisma/seed.ts')\""
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@prisma/client": "^5.22.0",
