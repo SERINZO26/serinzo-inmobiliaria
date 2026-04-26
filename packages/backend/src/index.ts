@@ -10,6 +10,8 @@ import { appointmentsRouter } from './api/appointments/router';
 import { dashboardRouter } from './api/dashboard/router';
 import { availabilityRouter } from './api/availability/router';
 import { staffRouter } from './api/staff/router';
+import { conversationsRouter } from './api/conversations/router';
+import { whatsappWebhookRouter } from './api/webhooks/whatsapp';
 
 const app = express();
 
@@ -17,6 +19,8 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+// Twilio envía el body como application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: false }));
 
 // Health check público
 app.get('/health', (_req, res) => {
@@ -31,6 +35,10 @@ app.use('/api/v1/appointments', appointmentsRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/availability', availabilityRouter);
 app.use('/api/v1/staff', staffRouter);
+app.use('/api/v1/conversations', conversationsRouter);
+
+// Webhooks externos (sin autenticación JWT — validados por firma de Twilio)
+app.use('/api/v1/webhooks/whatsapp', whatsappWebhookRouter);
 
 // 404 para rutas desconocidas
 app.use((req, res) => {

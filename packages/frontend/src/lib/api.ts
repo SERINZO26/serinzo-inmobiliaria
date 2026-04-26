@@ -164,6 +164,39 @@ export interface Availability {
   createdAt: string;
 }
 
+export type ConversationChannel = 'VOZ' | 'WHATSAPP' | 'WEB';
+export type ConversationOutcome =
+  | 'calificado'
+  | 'cita_agendada'
+  | 'sin_interes'
+  | 'no_responde'
+  | 'caso_especial'
+  | 'seguimiento';
+
+export interface ConversationTurn {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  intentDetected: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  channel: ConversationChannel;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  summary: string | null;
+  interestDetected: number | null;
+  interestOverride: number | null;
+  topics: string[];
+  outcome: ConversationOutcome | null;
+  recordingUrl: string | null;
+  client: { id: string; name: string; phone: string } | null;
+  turns?: ConversationTurn[];
+}
+
 export interface KpiData {
   inmuebles: { total: number; disponibles: number };
   clientes: { total: number; porStatus: Record<string, number>; calificados: number };
@@ -331,6 +364,16 @@ export const staffApi = {
 
   toggleStatus: (id: string) =>
     api.patch<ApiResponse<User>>(`/api/v1/staff/${id}/status`),
+};
+
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+export const conversationsApi = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get<ApiResponse<Conversation[]>>('/api/v1/conversations', { params }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<Conversation>>(`/api/v1/conversations/${id}`),
 };
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────

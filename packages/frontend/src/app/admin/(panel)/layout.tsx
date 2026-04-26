@@ -19,7 +19,6 @@ import {
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 const navItems = [
@@ -27,7 +26,7 @@ const navItems = [
   { href: '/admin/inmuebles', label: 'Inmuebles', icon: Building2, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
   { href: '/admin/clientes', label: 'Clientes', icon: Users, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
   { href: '/admin/citas', label: 'Citas', icon: CalendarCheck, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
-  { href: '/admin/conversaciones', label: 'Conversaciones', icon: MessageSquare, roles: ['ADMIN', 'AGENT', 'ASSISTANT'], comingSoon: true },
+  { href: '/admin/conversaciones', label: 'Conversaciones', icon: MessageSquare, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
   { href: '/admin/equipo', label: 'Equipo', icon: UserCog, roles: ['ADMIN'] },
   { href: '/admin/configuracion', label: 'Configuración', icon: Settings, roles: ['ADMIN'] },
 ];
@@ -76,23 +75,17 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
             return (
               <Link
                 key={item.href}
-                href={item.comingSoon ? '#' : item.href}
+                href={item.href}
                 onClick={onClose}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   active
                     ? 'bg-white/15 text-white'
                     : 'text-slate-400 hover:text-white hover:bg-white/8',
-                  item.comingSoon && 'cursor-default opacity-60'
                 )}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1">{item.label}</span>
-                {item.comingSoon && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-slate-600 text-slate-400">
-                    Próx.
-                  </Badge>
-                )}
               </Link>
             );
           })}

@@ -1,8 +1,9 @@
 import { config } from 'dotenv';
 import { z } from 'zod';
 
-// Cargar .env antes de validar
-config();
+// override: true — necesario porque ANTHROPIC_API_KEY="" puede estar definida
+// como cadena vacía en el entorno del sistema Windows y dotenv no la sobreescribiría
+config({ override: true });
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url('DATABASE_URL debe ser una URL válida de PostgreSQL'),

@@ -11,7 +11,11 @@
     "dev:backend": "npm run dev --workspace=packages/backend",
     "dev:frontend": "npm run dev --workspace=packages/frontend",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "start:backend": "cd packages/backend && npm run dev",
+    "start:frontend": "cd packages/frontend && npm run dev",
+    "start:tunnel": "npx cloudflared tunnel --url http://localhost:4000",
+    "start:all": "concurrently \"npm run start:backend\" \"npm run start:frontend\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
