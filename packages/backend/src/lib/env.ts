@@ -14,6 +14,11 @@ const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: z.string().default('4000'),
+
+  // Cloudinary — requerido para subida de fotos
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME es requerido'),
+  CLOUDINARY_API_KEY:    z.string().min(1, 'CLOUDINARY_API_KEY es requerido'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET es requerido'),
 });
 
 const parsed = envSchema.safeParse(process.env);

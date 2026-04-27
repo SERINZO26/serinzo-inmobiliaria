@@ -366,6 +366,26 @@ export const staffApi = {
     api.patch<ApiResponse<User>>(`/api/v1/staff/${id}/status`),
 };
 
+// ─── Property Photos ─────────────────────────────────────────────────────────
+
+export const photosApi = {
+  upload: (propertyId: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append('photos', f));
+    return api.post<ApiResponse<{ photos: string[]; added: string[] }>>(
+      `/api/v1/properties/${propertyId}/photos`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
+
+  delete: (propertyId: string, photoUrl: string) =>
+    api.delete<ApiResponse<{ photos: string[] }>>(
+      `/api/v1/properties/${propertyId}/photos`,
+      { data: { photoUrl } },
+    ),
+};
+
 // ─── Conversations ────────────────────────────────────────────────────────────
 
 export const conversationsApi = {

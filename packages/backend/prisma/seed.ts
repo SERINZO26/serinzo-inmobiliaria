@@ -42,7 +42,15 @@ async function main() {
 
   const apartamento = await prisma.property.upsert({
     where: { slug: 'apartamento-2-habitaciones-chapinero-bogota' },
-    update: {},
+    update: {
+      photos: {
+        set: [
+          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+          'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
+        ],
+      },
+    },
     create: {
       title: 'Apartamento en Chapinero con excelente ubicación',
       description: 'Hermoso apartamento de 2 habitaciones en el corazón de Chapinero. Edificio moderno con todas las comodidades. A 5 minutos de la Calle 72. Ideal para profesionales o pareja joven.',
@@ -69,7 +77,11 @@ async function main() {
       department: 'Cundinamarca',
       lat: 4.6486,
       lng: -74.0586,
-      photos: [],
+      photos: [
+        'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+        'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+        'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
+      ],
       videos: [],
       status: PropertyStatus.DISPONIBLE,
       featured: true,
@@ -101,7 +113,15 @@ async function main() {
 
   const casa = await prisma.property.upsert({
     where: { slug: 'casa-4-habitaciones-laureles-medellin' },
-    update: {},
+    update: {
+      photos: {
+        set: [
+          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
+          'https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=800&q=80',
+          'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+        ],
+      },
+    },
     create: {
       title: 'Casa campestre en Laureles con piscina y jardín',
       description: 'Espectacular casa de 4 habitaciones en el exclusivo barrio Laureles de Medellín. Amplios espacios, piscina privada, jardín y cuarto de servicio. Perfecta para familia. Dos parqueaderos cubiertos.',
@@ -127,7 +147,11 @@ async function main() {
       department: 'Antioquia',
       lat: 6.2476,
       lng: -75.5933,
-      photos: [],
+      photos: [
+        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
+        'https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=800&q=80',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+      ],
       videos: [],
       status: PropertyStatus.DISPONIBLE,
       featured: false,
@@ -160,7 +184,14 @@ async function main() {
 
   const local = await prisma.property.upsert({
     where: { slug: 'local-comercial-el-poblado-medellin' },
-    update: {},
+    update: {
+      photos: {
+        set: [
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
+          'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&q=80',
+        ],
+      },
+    },
     create: {
       title: 'Local comercial en El Poblado con alta visibilidad',
       description: 'Local comercial estratégicamente ubicado en El Poblado, Medellín. Ideal para restaurante, boutique o consultorio. Cuenta con vitrina amplia, baño completo y depósito. Zona de alto tráfico peatonal y vehicular.',
@@ -186,7 +217,10 @@ async function main() {
       department: 'Antioquia',
       lat: 6.2086,
       lng: -75.5705,
-      photos: [],
+      photos: [
+        'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
+        'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&q=80',
+      ],
       videos: [],
       status: PropertyStatus.DISPONIBLE,
       featured: false,
@@ -213,6 +247,31 @@ async function main() {
       { propertyId: local.id, category: FeatureCategory.INTERIOR, name: 'Depósito', value: 'Sí' },
     ],
     skipDuplicates: true,
+  });
+
+  // Forzar actualización de fotos (los upserts no actualizan arrays escalares si el registro ya existía)
+  await prisma.property.update({
+    where: { id: apartamento.id },
+    data: { photos: [
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80',
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
+    ] },
+  });
+  await prisma.property.update({
+    where: { id: casa.id },
+    data: { photos: [
+      'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80',
+      'https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=800&q=80',
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+    ] },
+  });
+  await prisma.property.update({
+    where: { id: local.id },
+    data: { photos: [
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
+      'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&q=80',
+    ] },
   });
 
   console.log(`Inmuebles creados: ${apartamento.title.substring(0, 30)}..., ${casa.title.substring(0, 30)}..., ${local.title.substring(0, 30)}...`);

@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
 import { Prisma, PropertyType, Operation, PropertyStatus } from '../../lib/generated/prisma';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAdmin, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
+import { uploadMultipleImages, deleteImage, extractPublicId } from '../../services/storage';
 
 export const propertiesRouter = Router();
 
@@ -408,5 +410,94 @@ propertiesRouter.delete(
     });
 
     return success(res, { message: 'Inmueble archivado correctamente' });
+  })
+);
+
+// ─── FOTOS ────────────────────────────────────────────────────────────────────
+
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SIZE_BYTES, files: 10 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Formato no permitido: ${file.mimetype}. Solo JPEG, PNG y WebP.`));
+    }
+  },
+});
+
+// POST /api/v1/properties/:id/photos
+propertiesRouter.post(
+  '/:id/photos',
+  requireAgentOrAdmin,
+  photoUpload.array('photos', 10),
+  asyncHandler(async (req, res) => {
+    const files = req.files as Express.Multer.File[] | undefined;
+    if (!files || files.length === 0)
+      return error(res, 'No se recibieron archivos. Envía el campo "photos" con al menos una imagen.', 400);
+
+    const property = await prisma.property.findFirst({
+      where: { id: req.params.id, archived: false },
+      select: { id: true, photos: true },
+    });
+    if (!property) return notFound(res, 'Inmueble');
+
+    // Subir a Cloudinary en paralelo — carpeta = ID del inmueble
+    const uploaded = await uploadMultipleImages(files, property.id);
+    const newUrls  = uploaded.map((u) => u.url);
+
+    // Agregar las nuevas URLs al array existente de fotos en la BD
+    const updated = await prisma.property.update({
+      where: { id: property.id },
+      data:  { photos: [...property.photos, ...newUrls] },
+      select: { id: true, photos: true },
+    });
+
+    console.log(`[properties] ${newUrls.length} foto(s) subidas al inmueble ${property.id}`);
+
+    return success(res, {
+      photos: updated.photos,
+      added:  newUrls,
+    }, 201);
+  })
+);
+
+// DELETE /api/v1/properties/:id/photos
+propertiesRouter.delete(
+  '/:id/photos',
+  requireAgentOrAdmin,
+  asyncHandler(async (req, res) => {
+    const { photoUrl } = req.body as { photoUrl?: string };
+    if (!photoUrl) return error(res, 'El campo photoUrl es requerido', 400);
+
+    const property = await prisma.property.findFirst({
+      where: { id: req.params.id, archived: false },
+      select: { id: true, photos: true },
+    });
+    if (!property) return notFound(res, 'Inmueble');
+
+    if (!property.photos.includes(photoUrl))
+      return error(res, 'La foto indicada no pertenece a este inmueble', 400);
+
+    // Eliminar de Cloudinary (no bloquea aunque falle)
+    const publicId = extractPublicId(photoUrl);
+    if (publicId) {
+      await deleteImage(publicId);
+    }
+
+    // Quitar la URL del array en BD
+    const updated = await prisma.property.update({
+      where: { id: property.id },
+      data:  { photos: property.photos.filter((p) => p !== photoUrl) },
+      select: { id: true, photos: true },
+    });
+
+    console.log(`[properties] Foto eliminada del inmueble ${property.id}: ${publicId ?? photoUrl}`);
+
+    return success(res, { photos: updated.photos });
   })
 );

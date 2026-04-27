@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Lock, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { AvailabilityPicker, type DaySlot } from '@/components/availability-picker/AvailabilityPicker';
-import { propertiesApi, type Property, type PropertyType, type PropertyOperation } from '@/lib/api';
+import { PhotoUploader } from '@/components/property-form/PhotoUploader';
+import { propertiesApi, photosApi, type Property, type PropertyType, type PropertyOperation } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -266,7 +267,7 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
   const [saving, setSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState('');
-  const [dragOver, setDragOver] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const autoSaveRef = useRef<ReturnType<typeof setTimeout>>();
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -302,11 +303,26 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
     setError('');
     try {
       if (mode === 'new') {
-        await propertiesApi.create(formToPayload(form));
-        router.push('/inmuebles');
+        // 1. Crear inmueble
+        const res = await propertiesApi.create(formToPayload(form));
+        const newId = res.data.data.id;
+
+        // 2. Subir fotos pendientes al nuevo inmueble
+        if (pendingFiles.length > 0) {
+          try {
+            await photosApi.upload(newId, pendingFiles);
+          } catch {
+            // Las fotos no bloquean el guardado — el usuario puede subirlas después
+            setError('El inmueble se creó correctamente, pero hubo un problema al subir las fotos. Puedes agregarlas desde la edición.');
+            router.push(`/admin/inmuebles/${newId}`);
+            return;
+          }
+        }
+
+        router.push(`/admin/inmuebles/${newId}`);
       } else if (property?.id) {
         await propertiesApi.update(property.id, formToPayload(form));
-        router.push('/inmuebles');
+        router.push('/admin/inmuebles');
       }
     } catch {
       setError('No se pudo guardar el inmueble. Intenta de nuevo.');
@@ -321,15 +337,6 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
         ? form.selectedFeatures.filter((f) => f !== feat)
         : [...form.selectedFeatures, feat],
     );
-  }
-
-  function handlePhotoUrl() {
-    const url = window.prompt('Pega la URL de la foto:');
-    if (url) set('photos', [...form.photos, url]);
-  }
-
-  function removePhoto(i: number) {
-    set('photos', form.photos.filter((_, idx) => idx !== i));
   }
 
   const mapAddress = encodeURIComponent(`${form.address}, ${form.city}, Colombia`);
@@ -555,43 +562,15 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
       {/* ── Fotos y videos ── */}
       <section>
         <SectionTitle>Fotos y videos</SectionTitle>
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            // Por ahora solo mostramos la UI — Cloudinary se integra en Etapa 2
-          }}
-          className={cn(
-            'border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer',
-            dragOver ? 'border-slate-400 bg-slate-50' : 'border-slate-200 hover:border-slate-300',
-          )}
-          onClick={handlePhotoUrl}
-        >
-          <p className="text-sm text-slate-500">Arrastra fotos aquí o <span className="text-blue-600 underline">agrega una URL</span></p>
-          <p className="text-xs text-slate-400 mt-1">La subida de archivos estará disponible próximamente</p>
-        </div>
+        <PhotoUploader
+          photos={form.photos}
+          propertyId={property?.id ?? null}
+          onChange={(urls) => set('photos', urls)}
+          pendingFiles={pendingFiles}
+          onPendingFiles={setPendingFiles}
+        />
 
-        {form.photos.length > 0 && (
-          <div className="grid grid-cols-4 gap-2 mt-3">
-            {form.photos.map((url, i) => (
-              <div key={i} className="relative group aspect-video rounded-lg overflow-hidden bg-slate-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removePhoto(i)}
-                  className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-3 space-y-1.5">
+        <div className="mt-4 space-y-1.5">
           <Label>URL de video o tour virtual</Label>
           <Input
             value={form.virtualTourUrl}
