@@ -11,7 +11,10 @@ import { dashboardRouter } from './api/dashboard/router';
 import { availabilityRouter } from './api/availability/router';
 import { staffRouter } from './api/staff/router';
 import { conversationsRouter } from './api/conversations/router';
+import { rentalRouter } from './api/contracts/rental-router';
+import { saleRouter } from './api/contracts/sale-router';
 import { whatsappWebhookRouter } from './api/webhooks/whatsapp';
+import { initScheduler } from './services/scheduler';
 
 const app = express();
 
@@ -36,6 +39,8 @@ app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/availability', availabilityRouter);
 app.use('/api/v1/staff', staffRouter);
 app.use('/api/v1/conversations', conversationsRouter);
+app.use('/api/v1/contracts/arriendos', rentalRouter);
+app.use('/api/v1/contracts/ventas', saleRouter);
 
 // Webhooks externos (sin autenticación JWT — validados por firma de Twilio)
 app.use('/api/v1/webhooks/whatsapp', whatsappWebhookRouter);
@@ -59,6 +64,8 @@ const PORT = parseInt(env.PORT, 10);
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT} — entorno: ${env.NODE_ENV}`);
+  // Iniciar jobs programados (alertas de contratos, cuotas vencidas)
+  initScheduler();
 });
 
 export default app;

@@ -155,6 +155,29 @@ enum LogStatus {
   ERROR
 }
 
+enum RentalContractStatus {
+  BORRADOR
+  ACTIVO
+  RENOVADO
+  VENCIDO
+  CANCELADO
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PAGADO
+  VENCIDO
+  PARCIAL
+}
+
+enum SaleStatus {
+  BORRADOR
+  EN_PROCESO
+  FIRMADO
+  REGISTRADO
+  CANCELADO
+}
+
 // ─── MODELS ────────────────────────────────────────────────────────────────────
 
 model User {
@@ -178,6 +201,8 @@ model User {
   availability      Availability[]
   prospectedReviews ProspectedProperty[] @relation("ReviewedBy")
   campaigns         Campaign[]           @relation("CampaignCreator")
+  rentalContracts   RentalContract[]     @relation("ContractAgent")
+  saleContracts     SaleContract[]       @relation("SaleContractAgent")
 
   @@map("users")
 }
@@ -240,6 +265,8 @@ model Property {
   conversations      Conversation[]
   prospectedProperty ProspectedProperty?
   mediaAssets        MediaAsset[]
+  rentalContracts    RentalContract[]
+  saleContracts      SaleContract[]
 
   @@index([status])
   @@index([type])
@@ -290,9 +317,11 @@ model Client {
   lastContactAt          DateTime?
   archived               Boolean      @default(false)
 
-  assignedAgent User?          @relation("ClientAgent", fields: [assignedAgentId], references: [id])
-  appointments  Appointment[]
-  conversations Conversation[]
+  assignedAgent   User?            @relation("ClientAgent", fields: [assignedAgentId], references: [id])
+  appointments    Appointment[]
+  conversations   Conversation[]
+  rentalContracts RentalContract[]
+  saleContracts   SaleContract[]
 
   @@index([status])
   @@index([interestLevel])
@@ -501,4 +530,96 @@ model AgentLog {
   @@index([status])
   @@index([createdAt])
   @@map("agent_logs")
+}
+
+// ─── CONTRATOS ─────────────────────────────────────────────────────────────────
+
+model RentalContract {
+  id               String               @id @default(cuid())
+  propertyId       String
+  clientId         String
+  agentId          String
+  startDate        DateTime
+  endDate          DateTime
+  monthlyRent      Decimal
+  rentCurrency     String               @default("COP")
+  adminFee         Decimal?
+  depositAmount    Decimal?
+  depositCurrency  String               @default("COP")
+  depositReturned  Boolean              @default(false)
+  // Comisión de la inmobiliaria sobre el canon mensual (porcentaje, ej: 10.00)
+  commissionPct    Decimal?
+  status           RentalContractStatus @default(BORRADOR)
+  pdfUrl           String?
+  notes            String?
+  // Usado por el scheduler para no enviar alertas duplicadas el mismo día
+  lastAlertSentAt  DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  property Property         @relation(fields: [propertyId], references: [id])
+  client   Client           @relation(fields: [clientId], references: [id])
+  agent    User             @relation("ContractAgent", fields: [agentId], references: [id])
+  payments RentalPayment[]
+
+  @@index([status])
+  @@index([propertyId])
+  @@index([clientId])
+  @@index([endDate])
+  @@map("rental_contracts")
+}
+
+model RentalPayment {
+  id           String        @id @default(cuid())
+  contractId   String
+  // Número de cuota (1, 2, 3...)
+  periodNumber Int
+  dueDate      DateTime
+  paidAt       DateTime?
+  amount       Decimal
+  // Monto neto al propietario (amount - comisión calculada)
+  ownerPayment Decimal?
+  commission   Decimal?
+  status       PaymentStatus @default(PENDIENTE)
+  // URL del comprobante subido a Cloudinary
+  receiptUrl   String?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  contract RentalContract @relation(fields: [contractId], references: [id])
+
+  @@index([contractId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("rental_payments")
+}
+
+model SaleContract {
+  id               String     @id @default(cuid())
+  propertyId       String
+  clientId         String
+  agentId          String
+  salePrice        Decimal
+  saleCurrency     String     @default("COP")
+  // Comisión de la inmobiliaria (porcentaje sobre el precio de venta, ej: 3.00)
+  commissionPct    Decimal?
+  commissionAmount Decimal?
+  promiseDate      DateTime?
+  signDate         DateTime?
+  registrationDate DateTime?
+  status           SaleStatus @default(BORRADOR)
+  pdfUrl           String?
+  notes            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  client   Client   @relation(fields: [clientId], references: [id])
+  agent    User     @relation("SaleContractAgent", fields: [agentId], references: [id])
+
+  @@index([status])
+  @@index([propertyId])
+  @@index([clientId])
+  @@map("sale_contracts")
 }
