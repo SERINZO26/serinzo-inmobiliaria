@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { Prisma, RentalContractStatus, PropertyStatus } from '../../lib/generated/prisma';
+import { Prisma, RentalContractStatus, PropertyStatus, PaymentStatus } from '../../lib/generated/prisma';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
@@ -103,8 +103,8 @@ rentalRouter.get(
           property: { select: { id: true, title: true, address: true, city: true } },
           client:   { select: { id: true, name: true, phone: true, email: true } },
           agent:    { select: { id: true, name: true } },
-          // Solo incluye conteo de pagos para el listado
-          payments: { select: { id: true, status: true }, orderBy: { periodNumber: 'asc' } },
+          // Solo incluye id, status y dueDate de pagos para el listado (badges de pago próximo/atrasado)
+          payments: { select: { id: true, status: true, dueDate: true }, orderBy: { periodNumber: 'asc' } },
         },
         orderBy: { startDate: 'desc' },
         skip: (page - 1) * limit,
@@ -161,6 +161,57 @@ rentalRouter.get(
     }));
 
     return success(res, enriched);
+  }),
+);
+
+// ─── GET /api/v1/contracts/arriendos/pending-payments ────────────────────────
+// Pagos PENDIENTE cuyo vencimiento es en los próximos 10 días.
+// Usado por el badge del sidebar — solo muestra pagos urgentes.
+// Montado ANTES de /:id para que Express no lo interprete como un ID.
+
+rentalRouter.get(
+  '/pending-payments',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user    = req.user!;
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 10);
+
+    const where: Prisma.RentalPaymentWhereInput = {
+      status:  PaymentStatus.PENDIENTE,
+      dueDate: { lte: horizon },
+      contract: {
+        status: RentalContractStatus.ACTIVO,
+        // Agente solo ve sus contratos
+        ...(user.role === 'AGENT' && { agentId: user.id }),
+      },
+    };
+
+    const payments = await prisma.rentalPayment.findMany({
+      where,
+      include: {
+        contract: {
+          include: {
+            property: { select: { id: true, title: true } },
+            agent:    { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    const result = payments.map((p) => ({
+      id:            p.id,
+      contractId:    p.contractId,
+      periodNumber:  p.periodNumber,
+      dueDate:       p.dueDate,
+      amount:        p.amount,
+      ownerPayment:  p.ownerPayment,
+      propertyTitle: p.contract.property?.title ?? '–',
+      agentName:     p.contract.agent?.name    ?? '–',
+    }));
+
+    return success(res, { count: result.length, payments: result });
   }),
 );
 

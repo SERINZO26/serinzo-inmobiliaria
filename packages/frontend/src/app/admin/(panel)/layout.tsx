@@ -53,13 +53,13 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const { data: session } = useSession();
   const role = session?.user?.role ?? '';
 
-  // Conteo de contratos próximos a vencer para el badge del sidebar
-  const { data: alertsData } = useQuery({
-    queryKey: ['rental-alerts-count'],
-    queryFn: async () => (await rentalApi.getAlerts()).data.data,
+  // Pagos PENDIENTE con vencimiento en ≤ 10 días — para el badge rojo del sidebar
+  const { data: pendingData } = useQuery({
+    queryKey: ['pending-payments-count'],
+    queryFn: async () => (await rentalApi.getPendingPayments()).data.data,
     staleTime: 5 * 60 * 1000, // refrescar cada 5 minutos
   });
-  const alertCount = alertsData?.length ?? 0;
+  const alertCount = pendingData?.count ?? 0;
 
   return (
     <aside className="flex flex-col h-full bg-slate-900 text-white w-60">

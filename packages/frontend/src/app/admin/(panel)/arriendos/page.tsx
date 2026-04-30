@@ -41,6 +41,26 @@ function weeksUntil(dateStr: string) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
 }
 
+/** Horizonte de 10 días para badge "Pago próximo" */
+const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+
+function paymentBadge(payments?: Array<{ status: string; dueDate: string }>) {
+  if (!payments) return null;
+  const now = Date.now();
+
+  // "Pago atrasado": cuota VENCIDO (marcada por el cron diario)
+  const atrasado = payments.some((p) => p.status === 'VENCIDO');
+  if (atrasado) return 'atrasado' as const;
+
+  // "Pago próximo": cuota PENDIENTE cuyo vencimiento es en ≤ 10 días
+  const proximo = payments.some(
+    (p) => p.status === 'PENDIENTE' && new Date(p.dueDate).getTime() - now <= TEN_DAYS_MS,
+  );
+  if (proximo) return 'proximo' as const;
+
+  return null;
+}
+
 // ─── KPI Card ────────────────────────────────────────────────────────────────
 
 function KpiBox({ label, value, sub, color, icon }: {
@@ -224,8 +244,9 @@ export default function ArriendosPage() {
               )}
 
               {displayContracts.map((c) => {
-                const weeks = weeksUntil(c.endDate);
+                const weeks   = weeksUntil(c.endDate);
                 const isAlert = c.status === 'ACTIVO' && weeks <= 15 && weeks >= 0;
+                const badge   = c.status === 'ACTIVO' ? paymentBadge(c.payments as Array<{ status: string; dueDate: string }>) : null;
                 return (
                   <tr key={c.id} className={cn('hover:bg-slate-50 transition-colors', isAlert && 'bg-red-50/40')}>
                     <td className="px-4 py-3">
@@ -258,9 +279,21 @@ export default function ArriendosPage() {
                       {formatPrice(Number(c.monthlyRent), c.rentCurrency)}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border', statusColor(c.status))}>
-                        {statusLabel(c.status)}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border w-fit', statusColor(c.status))}>
+                          {statusLabel(c.status)}
+                        </span>
+                        {badge === 'atrasado' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200 w-fit">
+                            Pago atrasado
+                          </span>
+                        )}
+                        {badge === 'proximo' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200 w-fit">
+                            Pago próximo
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600 text-xs">{c.agent?.name ?? '–'}</td>
                     <td className="px-4 py-3">

@@ -499,6 +499,14 @@ export const rentalApi = {
 
   getAlerts: (weeks?: number) =>
     api.get<ApiResponse<RentalContract[]>>('/api/v1/contracts/arriendos/alerts', { params: { weeks } }),
+
+  // Pagos PENDIENTE con dueDate ≤ hoy + 10 días (badge sidebar y KPI)
+  getPendingPayments: () =>
+    api.get<ApiResponse<{ count: number; payments: Array<{
+      id: string; contractId: string; periodNumber: number;
+      dueDate: string; amount: number; ownerPayment: number | null;
+      propertyTitle: string; agentName: string;
+    }> }>>('/api/v1/contracts/arriendos/pending-payments'),
 };
 
 // ─── Rental Payments ─────────────────────────────────────────────────────────

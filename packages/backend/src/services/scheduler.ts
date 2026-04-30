@@ -14,9 +14,9 @@
  */
 
 import cron from 'node-cron';
-import { Prisma, PaymentStatus, RentalContractStatus } from '../lib/generated/prisma';
+import { Prisma, PaymentStatus, RentalContractStatus, LogStatus, Role, UserStatus } from '../lib/generated/prisma';
 import { prisma } from '../lib/prisma';
-import { sendEmail } from './messaging';
+import { sendEmail, sendWhatsAppText } from './messaging';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -216,6 +216,414 @@ async function alertExpiringContracts(): Promise<void> {
   }
 }
 
+// ─── Job 3: Recordatorio de pagos pendientes (lunes 8am) ─────────────────────
+
+/**
+ * Construye el HTML del email de recordatorio de pagos próximos.
+ */
+function buildPendingPaymentsEmail(
+  recipientName: string,
+  payments: Array<{
+    periodNumber: number;
+    dueDate:      Date;
+    amount:       Prisma.Decimal;
+    contract: {
+      property: { title: string; address: string; city: string };
+      client:   { name: string };
+    };
+  }>,
+): { subject: string; html: string } {
+  const count   = payments.length;
+  const subject = `⚠️ ${count} pago${count !== 1 ? 's' : ''} de arriendo vence${count === 1 ? 'n' : ''} esta semana`;
+
+  const rows = payments
+    .map((p) => {
+      const fecha = p.dueDate.toLocaleDateString('es-CO', {
+        weekday: 'short', day: 'numeric', month: 'long',
+      });
+      const vence = new Date(p.dueDate).getTime() < Date.now() ? '🔴 Vencido' : '🟠 Próximo';
+      return `
+        <tr style="background: #f8fafc;">
+          <td style="padding: 8px 12px;">${p.contract.property.title}</td>
+          <td style="padding: 8px 12px;">${p.contract.client.name}</td>
+          <td style="padding: 8px 12px;">Cuota #${p.periodNumber}</td>
+          <td style="padding: 8px 12px;">${fecha}</td>
+          <td style="padding: 8px 12px; text-align: right; font-weight: bold;">
+            $${Number(p.amount).toLocaleString('es-CO')} COP
+          </td>
+          <td style="padding: 8px 12px;">${vence}</td>
+        </tr>`;
+    })
+    .join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #1e293b;">
+      <div style="background: #f59e0b; padding: 16px 24px; border-radius: 8px 8px 0 0;">
+        <h2 style="color: white; margin: 0; font-size: 18px;">
+          ⚠️ Recordatorio semanal — Pagos próximos a vencer
+        </h2>
+      </div>
+      <div style="padding: 24px; background: #ffffff; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+        <p style="margin: 0 0 16px;">
+          Hola <strong>${recipientName}</strong>, este es tu recordatorio de pagos de arriendo
+          que vencen en los próximos 7 días:
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: #e2e8f0;">
+              <th style="padding: 8px 12px; text-align: left;">Inmueble</th>
+              <th style="padding: 8px 12px; text-align: left;">Arrendatario</th>
+              <th style="padding: 8px 12px; text-align: left;">Período</th>
+              <th style="padding: 8px 12px; text-align: left;">Vencimiento</th>
+              <th style="padding: 8px 12px; text-align: right;">Valor</th>
+              <th style="padding: 8px 12px; text-align: left;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="margin: 20px 0 0; font-size: 13px; color: #64748b;">
+          Registra los pagos desde el panel en <strong>Contratos → Arriendos</strong>.
+        </p>
+      </div>
+      <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 16px;">
+        Mensaje automático del sistema — ${new Date().toLocaleDateString('es-CO')}
+      </p>
+    </div>`;
+
+  return { subject, html };
+}
+
+/**
+ * Busca cuotas PENDIENTE que vencen en los próximos 7 días,
+ * agrupa por agente y envía email + WhatsApp a cada agente y a todos los admins.
+ * Registra el resultado en AgentLog.
+ */
+async function remindPendingPayments(): Promise<void> {
+  const now     = new Date();
+  const horizon = new Date();
+  horizon.setDate(horizon.getDate() + 7);
+
+  try {
+    const payments = await prisma.rentalPayment.findMany({
+      where: {
+        status:  PaymentStatus.PENDIENTE,
+        dueDate: { gte: now, lte: horizon },
+        contract: { status: RentalContractStatus.ACTIVO },
+      },
+      include: {
+        contract: {
+          include: {
+            property: { select: { title: true, address: true, city: true } },
+            client:   { select: { name: true } },
+            agent:    { select: { id: true, name: true, email: true, phone: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    if (payments.length === 0) {
+      console.log(`[scheduler] remindPendingPayments — sin pagos próximos | ${now.toISOString()}`);
+      await prisma.agentLog.create({
+        data: {
+          agentName: 'scheduler',
+          action:    'recordatorio_pagos_pendientes',
+          input:     { horizon: horizon.toISOString() },
+          output:    { paymentsCount: 0, sentOk: 0, sentError: 0 },
+          status:    LogStatus.OK,
+        },
+      });
+      return;
+    }
+
+    // Agrupar cuotas por agente
+    const byAgent = new Map<string, typeof payments>();
+    for (const p of payments) {
+      const agentId = p.contract.agent.id;
+      if (!byAgent.has(agentId)) byAgent.set(agentId, []);
+      byAgent.get(agentId)!.push(p);
+    }
+
+    // Admins para notificación cruzada
+    const admins = await prisma.user.findMany({
+      where:  { role: Role.ADMIN, status: UserStatus.ACTIVE },
+      select: { name: true, email: true, phone: true },
+    });
+
+    let sentOk = 0;
+    let sentError = 0;
+
+    for (const [, agentPayments] of byAgent) {
+      const agent = agentPayments[0].contract.agent;
+      const { subject, html } = buildPendingPaymentsEmail(agent.name, agentPayments);
+
+      // Texto corto para WhatsApp
+      const waTxt =
+        `⚠️ Recordatorio: tienes ${agentPayments.length} pago(s) de arriendo que vence(n) esta semana.\n` +
+        agentPayments
+          .map(
+            (p) =>
+              `• ${p.contract.property.title} — ${p.dueDate.toLocaleDateString('es-CO')} — $${Number(p.amount).toLocaleString('es-CO')} COP`,
+          )
+          .join('\n') +
+        '\n\nRevisa el panel para registrar los pagos.';
+
+      // Destinatarios: agente propio + admins (sin duplicar si el agente es también admin)
+      const recipients = [
+        { name: agent.name, email: agent.email, phone: agent.phone },
+        ...admins.filter((a) => a.email !== agent.email),
+      ];
+
+      for (const recipient of recipients) {
+        try {
+          await sendEmail(recipient.email, subject, html);
+          if (recipient.phone) {
+            await sendWhatsAppText(recipient.phone, waTxt);
+          } else {
+            console.warn(
+              `[scheduler] remindPendingPayments — ${recipient.name} sin teléfono, solo email`,
+            );
+          }
+          sentOk++;
+        } catch (err) {
+          console.error(
+            `[scheduler] Error enviando recordatorio de pagos a ${recipient.email}:`,
+            err,
+          );
+          sentError++;
+        }
+      }
+    }
+
+    await prisma.agentLog.create({
+      data: {
+        agentName:         'scheduler',
+        action:            'recordatorio_pagos_pendientes',
+        input:             { paymentsCount: payments.length, horizon: horizon.toISOString() },
+        output:            { sentOk, sentError, agentCount: byAgent.size },
+        status:            sentError === 0 ? LogStatus.OK : LogStatus.ERROR,
+        relatedEntityType: 'RentalPayment',
+      },
+    });
+
+    console.log(
+      `[scheduler] remindPendingPayments — ${payments.length} cuota(s) | enviados OK: ${sentOk} | errores: ${sentError} | ${now.toISOString()}`,
+    );
+  } catch (err) {
+    console.error('[scheduler] Error en remindPendingPayments:', err);
+    await prisma.agentLog
+      .create({
+        data: {
+          agentName:    'scheduler',
+          action:       'recordatorio_pagos_pendientes',
+          input:        {},
+          output:       {},
+          status:       LogStatus.ERROR,
+          errorMessage: String(err),
+        },
+      })
+      .catch(() => {});
+  }
+}
+
+// ─── Job 4: Recordatorio semanal de contratos por vencer (lunes 8am) ──────────
+
+/**
+ * Detecta contratos ACTIVO en los hitos de aviso: 14-15 sem, 7-8 sem y 0-1 sem
+ * hasta vencimiento, y envía email + WhatsApp al agente y a todos los admins.
+ * Complementa alertExpiringContracts (diario) con avisos de hito específicos.
+ */
+async function remindExpiringContractsWeekly(): Promise<void> {
+  const now = new Date();
+
+  // Ventanas de días que corresponden a los hitos (inclusive)
+  const milestones = [
+    { label: '14-15 semanas', min: 98, max: 105 },
+    { label: '7-8 semanas',   min: 49, max: 56  },
+    { label: '0-1 semanas',   min: 0,  max: 7   },
+  ];
+
+  try {
+    // Recopilar contratos en cualquiera de los hitos
+    const allContracts: Array<{
+      id: string; endDate: Date; daysLeft: number; milestone: string;
+      monthlyRent: Prisma.Decimal; rentCurrency: string;
+      property: { title: string; address: string; city: string };
+      client:   { name: string; phone: string | null; email: string | null };
+      agent:    { id: string; name: string; email: string; phone: string | null };
+    }> = [];
+
+    for (const ms of milestones) {
+      const dateMin = new Date();
+      dateMin.setDate(dateMin.getDate() + ms.min);
+      const dateMax = new Date();
+      dateMax.setDate(dateMax.getDate() + ms.max);
+
+      const contracts = await prisma.rentalContract.findMany({
+        where: {
+          status:  RentalContractStatus.ACTIVO,
+          endDate: { gte: dateMin, lte: dateMax },
+        },
+        include: {
+          property: { select: { title: true, address: true, city: true } },
+          client:   { select: { name: true, phone: true, email: true } },
+          agent:    { select: { id: true, name: true, email: true, phone: true } },
+        },
+      });
+
+      for (const c of contracts) {
+        const daysLeft = Math.ceil(
+          (c.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        allContracts.push({ ...c, daysLeft, milestone: ms.label });
+      }
+    }
+
+    if (allContracts.length === 0) {
+      console.log(
+        `[scheduler] remindExpiringContractsWeekly — sin contratos en hitos de aviso | ${now.toISOString()}`,
+      );
+      await prisma.agentLog.create({
+        data: {
+          agentName: 'scheduler',
+          action:    'recordatorio_contrato_por_vencer',
+          input:     { milestonesChecked: milestones.length },
+          output:    { contractsCount: 0, sentOk: 0, sentError: 0 },
+          status:    LogStatus.OK,
+        },
+      });
+      return;
+    }
+
+    const admins = await prisma.user.findMany({
+      where:  { role: Role.ADMIN, status: UserStatus.ACTIVE },
+      select: { name: true, email: true, phone: true },
+    });
+
+    let sentOk = 0;
+    let sentError = 0;
+
+    for (const contract of allContracts) {
+      const esUrgente = contract.daysLeft <= 7;
+      const fechaFin  = contract.endDate.toLocaleDateString('es-CO', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      });
+
+      const subject = `${esUrgente ? '🔴 URGENTE — ' : '⚠️ '}Contrato vence en ${contract.daysLeft} día(s) [${contract.milestone}] — ${contract.property.title}`;
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #1e293b;">
+          <div style="background: ${esUrgente ? '#dc2626' : '#f59e0b'}; padding: 16px 24px; border-radius: 8px 8px 0 0;">
+            <h2 style="color: white; margin: 0; font-size: 18px;">
+              ${esUrgente ? '🔴 Contrato URGENTE por vencer' : '⚠️ Aviso de hito — Contrato por vencer'}
+            </h2>
+          </div>
+          <div style="padding: 24px; background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
+            <p style="margin: 0 0 16px;">
+              Alerta de hito <strong>${contract.milestone}</strong> antes del vencimiento del contrato:
+            </p>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+              <tr style="background: #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold; width: 40%;">Inmueble</td>
+                <td style="padding: 8px 12px;">${contract.property.title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; font-weight: bold; background: #f1f5f9;">Dirección</td>
+                <td style="padding: 8px 12px; background: #f1f5f9;">${contract.property.address}, ${contract.property.city}</td>
+              </tr>
+              <tr style="background: #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold;">Arrendatario</td>
+                <td style="padding: 8px 12px;">${contract.client.name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; font-weight: bold; background: #f1f5f9;">Canon mensual</td>
+                <td style="padding: 8px 12px; background: #f1f5f9;">
+                  $${Number(contract.monthlyRent).toLocaleString('es-CO')} ${contract.rentCurrency}
+                </td>
+              </tr>
+              <tr style="background: #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: bold;">Vence el</td>
+                <td style="padding: 8px 12px;">${fechaFin} (${contract.daysLeft} día(s))</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; font-weight: bold; background: #f1f5f9;">Hito</td>
+                <td style="padding: 8px 12px; background: #f1f5f9;">${contract.milestone}</td>
+              </tr>
+            </table>
+            <p style="margin: 0; font-size: 13px; color: #64748b;">
+              Gestiona la renovación desde el panel en <strong>Contratos → Arriendos</strong>.
+            </p>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 16px;">
+            Mensaje automático del sistema. ID contrato: ${contract.id}
+          </p>
+        </div>`;
+
+      const waTxt =
+        `${esUrgente ? '🔴 URGENTE' : '⚠️ Aviso'} — Contrato por vencer (${contract.milestone})\n` +
+        `Inmueble: ${contract.property.title}\n` +
+        `Arrendatario: ${contract.client.name}\n` +
+        `Vence el: ${fechaFin} (${contract.daysLeft} día(s))\n` +
+        `Canon: $${Number(contract.monthlyRent).toLocaleString('es-CO')} COP\n\n` +
+        `Gestiona la renovación en el panel.`;
+
+      const recipients = [
+        { name: contract.agent.name, email: contract.agent.email, phone: contract.agent.phone },
+        ...admins.filter((a) => a.email !== contract.agent.email),
+      ];
+
+      for (const recipient of recipients) {
+        try {
+          await sendEmail(recipient.email, subject, html);
+          if (recipient.phone) {
+            await sendWhatsAppText(recipient.phone, waTxt);
+          } else {
+            console.warn(
+              `[scheduler] remindExpiringContractsWeekly — ${recipient.name} sin teléfono, solo email`,
+            );
+          }
+          sentOk++;
+        } catch (err) {
+          console.error(
+            `[scheduler] Error enviando aviso de contrato ${contract.id} a ${recipient.email}:`,
+            err,
+          );
+          sentError++;
+        }
+      }
+    }
+
+    await prisma.agentLog.create({
+      data: {
+        agentName:         'scheduler',
+        action:            'recordatorio_contrato_por_vencer',
+        input:             { milestonesChecked: milestones.length },
+        output:            { contractsCount: allContracts.length, sentOk, sentError },
+        status:            sentError === 0 ? LogStatus.OK : LogStatus.ERROR,
+        relatedEntityType: 'RentalContract',
+      },
+    });
+
+    console.log(
+      `[scheduler] remindExpiringContractsWeekly — ${allContracts.length} contrato(s) en hitos | OK: ${sentOk} | errores: ${sentError} | ${now.toISOString()}`,
+    );
+  } catch (err) {
+    console.error('[scheduler] Error en remindExpiringContractsWeekly:', err);
+    await prisma.agentLog
+      .create({
+        data: {
+          agentName:    'scheduler',
+          action:       'recordatorio_contrato_por_vencer',
+          input:        {},
+          output:       {},
+          status:       LogStatus.ERROR,
+          errorMessage: String(err),
+        },
+      })
+      .catch(() => {});
+  }
+}
+
 // ─── initScheduler ────────────────────────────────────────────────────────────
 
 /**
@@ -230,15 +638,36 @@ export function initScheduler(): void {
     timezone: 'America/Bogota',
   });
 
-  // Job 2 — 08:00 AM Colombia: alertas de contratos próximos a vencer
+  // Job 2 — 08:00 AM Colombia: alertas de contratos próximos a vencer (diario)
   cron.schedule('0 8 * * *', alertExpiringContracts, {
     timezone: 'America/Bogota',
   });
 
-  console.log('[scheduler] Jobs registrados — markOverduePayments (07:50) y alertExpiringContracts (08:00) America/Bogota');
+  // Job 3 — 08:00 AM Colombia, solo lunes: recordatorio de cuotas que vencen esta semana
+  cron.schedule('0 8 * * 1', remindPendingPayments, {
+    timezone: 'America/Bogota',
+  });
+
+  // Job 4 — 08:00 AM Colombia, solo lunes: aviso de contratos en hitos de vencimiento
+  cron.schedule('0 8 * * 1', remindExpiringContractsWeekly, {
+    timezone: 'America/Bogota',
+  });
+
+  console.log(
+    '[scheduler] 4 jobs registrados — ' +
+    'markOverduePayments (07:50 diario) | ' +
+    'alertExpiringContracts (08:00 diario) | ' +
+    'remindPendingPayments (08:00 lunes) | ' +
+    'remindExpiringContractsWeekly (08:00 lunes) — timezone: America/Bogota',
+  );
 }
 
 // ─── Exportar jobs para pruebas manuales ─────────────────────────────────────
 // Permite invocarlos desde el panel de admin o en pruebas sin esperar el cron.
 
-export { markOverduePayments, alertExpiringContracts };
+export {
+  markOverduePayments,
+  alertExpiringContracts,
+  remindPendingPayments,
+  remindExpiringContractsWeekly,
+};
