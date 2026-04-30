@@ -164,6 +164,96 @@ export interface Availability {
   createdAt: string;
 }
 
+// ─── Tipos de Contratos ───────────────────────────────────────────────────────
+
+export type RentalContractStatus = 'BORRADOR' | 'ACTIVO' | 'RENOVADO' | 'VENCIDO' | 'CANCELADO';
+export type PaymentStatus = 'PENDIENTE' | 'PAGADO' | 'VENCIDO' | 'PARCIAL';
+export type SaleStatus = 'BORRADOR' | 'EN_PROCESO' | 'FIRMADO' | 'REGISTRADO' | 'CANCELADO';
+
+export interface RentalContract {
+  id: string;
+  propertyId: string;
+  clientId: string;
+  agentId: string;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  rentCurrency: string;
+  adminFee: number | null;
+  depositAmount: number | null;
+  depositCurrency: string;
+  depositReturned: boolean;
+  commissionPct: number | null;
+  status: RentalContractStatus;
+  pdfUrl: string | null;
+  notes: string | null;
+  lastAlertSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  daysUntilExpiry?: number;
+  property?: { id: string; title: string; address: string; city: string; photos: string[] };
+  client?: { id: string; name: string; phone: string | null; email: string | null };
+  agent?: { id: string; name: string };
+  payments?: RentalPayment[];
+}
+
+export interface RentalPayment {
+  id: string;
+  contractId: string;
+  periodNumber: number;
+  dueDate: string;
+  paidAt: string | null;
+  amount: number;
+  ownerPayment: number | null;
+  commission: number | null;
+  repairAmount: number | null;
+  repairDescription: string | null;
+  status: PaymentStatus;
+  estadoEfectivo?: PaymentStatus;
+  receiptUrl: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentSummary {
+  total: number;
+  totalMonto: number;
+  pagados: number;
+  montoPagado: number;
+  pendientes: number;
+  montoPendiente: number;
+  vencidos: number;
+  montoVencido: number;
+  parciales: number;
+  montoParcial: number;
+  totalPropietario: number;
+  totalComision: number;
+  proximaCuota: RentalPayment | null;
+}
+
+export interface SaleContract {
+  id: string;
+  propertyId: string;
+  clientId: string;
+  agentId: string;
+  salePrice: number;
+  saleCurrency: string;
+  commissionPct: number | null;
+  commissionAmount: number | null;
+  promiseDate: string | null;
+  signDate: string | null;
+  registrationDate: string | null;
+  status: SaleStatus;
+  pdfUrl: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  property?: { id: string; title: string; address: string; city: string; photos: string[] };
+  client?: { id: string; name: string; phone: string | null; email: string | null };
+  agent?: { id: string; name: string };
+}
+
 export type ConversationChannel = 'VOZ' | 'WHATSAPP' | 'WEB';
 export type ConversationOutcome =
   | 'calificado'
@@ -384,6 +474,124 @@ export const photosApi = {
       `/api/v1/properties/${propertyId}/photos`,
       { data: { photoUrl } },
     ),
+};
+
+// ─── Rental Contracts ─────────────────────────────────────────────────────────
+
+export const rentalApi = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get<ApiResponse<RentalContract[]>>('/api/v1/contracts/arriendos', { params }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<RentalContract>>(`/api/v1/contracts/arriendos/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    api.post<ApiResponse<RentalContract>>('/api/v1/contracts/arriendos', data),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<RentalContract>>(`/api/v1/contracts/arriendos/${id}`, data),
+
+  renew: (id: string, data: { newEndDate: string; monthlyRent?: number; commissionPct?: number; notes?: string }) =>
+    api.post<ApiResponse<RentalContract>>(`/api/v1/contracts/arriendos/${id}/renew`, data),
+
+  cancel: (id: string, notes?: string) =>
+    api.patch<ApiResponse<{ message: string }>>(`/api/v1/contracts/arriendos/${id}/cancel`, { notes }),
+
+  getAlerts: (weeks?: number) =>
+    api.get<ApiResponse<RentalContract[]>>('/api/v1/contracts/arriendos/alerts', { params: { weeks } }),
+};
+
+// ─── Rental Payments ─────────────────────────────────────────────────────────
+
+export const paymentsApi = {
+  getAll: (contractId: string) =>
+    api.get<ApiResponse<RentalPayment[]>>(`/api/v1/contracts/arriendos/${contractId}/pagos`),
+
+  getById: (contractId: string, paymentId: string) =>
+    api.get<ApiResponse<RentalPayment>>(`/api/v1/contracts/arriendos/${contractId}/pagos/${paymentId}`),
+
+  update: (contractId: string, paymentId: string, data: Record<string, unknown>) =>
+    api.patch<ApiResponse<RentalPayment>>(
+      `/api/v1/contracts/arriendos/${contractId}/pagos/${paymentId}`,
+      data,
+    ),
+
+  markPaid: (contractId: string, paymentId: string, formData: FormData) =>
+    api.patch<ApiResponse<RentalPayment>>(
+      `/api/v1/contracts/arriendos/${contractId}/pagos/${paymentId}/pagar`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    ),
+
+  getSummary: (contractId: string) =>
+    api.get<ApiResponse<PaymentSummary>>(`/api/v1/contracts/arriendos/${contractId}/pagos/resumen`),
+};
+
+// ─── Sale Contracts ───────────────────────────────────────────────────────────
+
+export const saleApi = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get<ApiResponse<SaleContract[]>>('/api/v1/contracts/ventas', { params }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<SaleContract>>(`/api/v1/contracts/ventas/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    api.post<ApiResponse<SaleContract>>('/api/v1/contracts/ventas', data),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<SaleContract>>(`/api/v1/contracts/ventas/${id}`, data),
+
+  uploadPdf: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('documento', file);
+    return api.patch<ApiResponse<{ id: string; pdfUrl: string; status: SaleStatus }>>(
+      `/api/v1/contracts/ventas/${id}/pdf`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
+
+  updateStatus: (id: string, status: SaleStatus, notes?: string) =>
+    api.patch<ApiResponse<{ id: string; status: SaleStatus; notes?: string }>>(
+      `/api/v1/contracts/ventas/${id}/estado`,
+      { status, notes },
+    ),
+};
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export interface Settings {
+  id: string;
+  companyName: string;
+  companyPhone: string | null;
+  companyEmail: string | null;
+  companyAddress: string | null;
+  companyCity: string | null;
+  companyLogoUrl: string | null;
+  agentName: string;
+  agentTone: string;
+  agentWelcome: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const settingsApi = {
+  get: () =>
+    api.get<ApiResponse<Settings>>('/api/v1/settings'),
+
+  update: (data: Partial<Omit<Settings, 'id' | 'companyLogoUrl' | 'createdAt' | 'updatedAt'>>) =>
+    api.put<ApiResponse<Settings>>('/api/v1/settings', data),
+
+  uploadLogo: (file: File) => {
+    const form = new FormData();
+    form.append('logo', file);
+    return api.patch<ApiResponse<Settings>>(
+      '/api/v1/settings/logo',
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
 };
 
 // ─── Conversations ────────────────────────────────────────────────────────────

@@ -1,8 +1,10 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Shield, Building2, Bot, Bell, User } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Shield, Building2, Bot, Bell, User, Upload, X, Loader2 } from 'lucide-react';
+import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,17 +18,13 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
+import { settingsApi } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
-
-interface EmpresaConfig {
-  nombre: string;
-  telefono: string;
-  email: string;
-  direccion: string;
-}
 
 interface AgenteConfig {
   nombre: string;
@@ -48,7 +46,7 @@ interface CuentaForm {
   passwordConfirmar: string;
 }
 
-// ─── Helpers localStorage ─────────────────────────────────────────────────────
+// ─── Helpers localStorage (solo para notificaciones y agente, aún sin API) ────
 
 function loadConfig<T>(key: string, defaults: T): T {
   if (typeof window === 'undefined') return defaults;
@@ -61,6 +59,86 @@ function loadConfig<T>(key: string, defaults: T): T {
 
 function saveConfig(key: string, data: unknown) {
   localStorage.setItem(key, JSON.stringify(data));
+}
+
+// ─── Logo uploader ─────────────────────────────────────────────────────────
+
+function LogoUploader({
+  currentUrl,
+  onSuccess,
+}: {
+  currentUrl: string | null;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const onDrop = useCallback((accepted: File[]) => {
+    if (accepted[0]) setLogoFile(accepted[0]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/jpeg': [], 'image/png': [], 'image/webp': [], 'image/svg+xml': [] },
+    maxFiles: 1,
+    maxSize: 2 * 1024 * 1024,
+  });
+
+  async function handleUpload() {
+    if (!logoFile) return;
+    setUploading(true);
+    try {
+      await settingsApi.uploadLogo(logoFile);
+      setLogoFile(null);
+      onSuccess();
+      toast({ title: 'Logo actualizado', description: 'El logo se subió correctamente.' });
+    } catch {
+      toast({ title: 'Error al subir el logo', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <Label>Logo de la inmobiliaria</Label>
+      {currentUrl && (
+        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={currentUrl} alt="Logo actual" className="h-12 w-auto object-contain rounded" />
+          <p className="text-xs text-slate-500">Logo actual</p>
+        </div>
+      )}
+      {logoFile ? (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <Upload className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          <span className="text-sm text-blue-700 flex-1 truncate">{logoFile.name}</span>
+          <button type="button" onClick={() => setLogoFile(null)} className="text-slate-400 hover:text-red-500">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div
+          {...getRootProps()}
+          className={cn(
+            'border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors',
+            isDragActive ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-slate-300',
+          )}
+        >
+          <input {...getInputProps()} />
+          <Upload className="h-6 w-6 mx-auto text-slate-400 mb-1" />
+          <p className="text-xs text-slate-500">{currentUrl ? 'Cambiar logo' : 'Subir logo'} · JPG, PNG, WebP, SVG · máx 2 MB</p>
+        </div>
+      )}
+      {logoFile && (
+        <Button size="sm" onClick={handleUpload} disabled={uploading} className="w-full">
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+          {currentUrl ? 'Reemplazar logo' : 'Subir logo'}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 // ─── Componente Switch con label ──────────────────────────────────────────────
@@ -92,18 +170,38 @@ function ToggleRow({
 export default function ConfiguracionPage() {
   const { data: session } = useSession();
   const { toast } = useToast();
+  const qc = useQueryClient();
 
   const isAdmin = session?.user?.role === 'ADMIN';
 
-  // Empresa
-  const [empresa, setEmpresa] = useState<EmpresaConfig>(() =>
-    loadConfig('config_empresa', {
-      nombre: '',
-      telefono: '',
-      email: '',
-      direccion: '',
-    })
-  );
+  // ── Settings desde la API ─────────────────────────────────────────────────
+  const { data: settingsData, isLoading: settingsLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => (await settingsApi.get()).data.data,
+    enabled: isAdmin,
+  });
+
+  // Formulario empresa — se sincroniza cuando llegan los datos
+  const [empresa, setEmpresa] = useState({
+    companyName:    '',
+    companyPhone:   '',
+    companyEmail:   '',
+    companyAddress: '',
+    companyCity:    '',
+  });
+  const [savingEmpresa, setSavingEmpresa] = useState(false);
+
+  useEffect(() => {
+    if (settingsData) {
+      setEmpresa({
+        companyName:    settingsData.companyName    ?? '',
+        companyPhone:   settingsData.companyPhone   ?? '',
+        companyEmail:   settingsData.companyEmail   ?? '',
+        companyAddress: settingsData.companyAddress ?? '',
+        companyCity:    settingsData.companyCity    ?? '',
+      });
+    }
+  }, [settingsData]);
 
   // Agente IA
   const [agente, setAgente] = useState<AgenteConfig>(() =>
@@ -150,10 +248,24 @@ export default function ConfiguracionPage() {
     );
   }
 
-  // ── Guardado empresa ──────────────────────────────────────────────────────
-  const guardarEmpresa = () => {
-    saveConfig('config_empresa', empresa);
-    toast({ title: 'Cambios guardados', description: 'Los datos de tu empresa se actualizaron.' });
+  // ── Guardado empresa → API real ───────────────────────────────────────────
+  const guardarEmpresa = async () => {
+    setSavingEmpresa(true);
+    try {
+      await settingsApi.update({
+        companyName:    empresa.companyName    || undefined,
+        companyPhone:   empresa.companyPhone   || null,
+        companyEmail:   empresa.companyEmail   || null,
+        companyAddress: empresa.companyAddress || null,
+        companyCity:    empresa.companyCity    || null,
+      });
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast({ title: 'Cambios guardados', description: 'Los datos de tu empresa se actualizaron.' });
+    } catch {
+      toast({ title: 'Error al guardar', description: 'No se pudieron guardar los cambios.', variant: 'destructive' });
+    } finally {
+      setSavingEmpresa(false);
+    }
   };
 
   // ── Guardado agente IA ────────────────────────────────────────────────────
@@ -223,51 +335,75 @@ export default function ConfiguracionPage() {
             <CardHeader>
               <CardTitle>Datos de la empresa</CardTitle>
               <CardDescription>
-                Esta información aparece en el sitio web público y en las comunicaciones.
+                Esta información aparece en los PDFs de liquidación y en las comunicaciones.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="empresa-nombre">Nombre de la inmobiliaria</Label>
-                <Input
-                  id="empresa-nombre"
-                  placeholder="Ej: Inmobiliaria del Norte"
-                  value={empresa.nombre}
-                  onChange={(e) => setEmpresa({ ...empresa, nombre: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="empresa-tel">Teléfono principal</Label>
-                <Input
-                  id="empresa-tel"
-                  type="tel"
-                  placeholder="+57 300 000 0000"
-                  value={empresa.telefono}
-                  onChange={(e) => setEmpresa({ ...empresa, telefono: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="empresa-email">Email de contacto</Label>
-                <Input
-                  id="empresa-email"
-                  type="email"
-                  placeholder="contacto@inmobiliaria.com"
-                  value={empresa.email}
-                  onChange={(e) => setEmpresa({ ...empresa, email: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="empresa-dir">Dirección</Label>
-                <Input
-                  id="empresa-dir"
-                  placeholder="Calle 123 #45-67, Bogotá"
-                  value={empresa.direccion}
-                  onChange={(e) => setEmpresa({ ...empresa, direccion: e.target.value })}
-                />
-              </div>
-              <Button onClick={guardarEmpresa} className="w-full sm:w-auto">
-                Guardar cambios
-              </Button>
+              {settingsLoading ? (
+                <div className="space-y-3">
+                  {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-9 w-full" />)}
+                </div>
+              ) : (
+                <>
+                  {/* Logo */}
+                  <LogoUploader
+                    currentUrl={settingsData?.companyLogoUrl ?? null}
+                    onSuccess={() => qc.invalidateQueries({ queryKey: ['settings'] })}
+                  />
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="empresa-nombre">Nombre de la inmobiliaria *</Label>
+                    <Input
+                      id="empresa-nombre"
+                      placeholder="Ej: Inmobiliaria del Norte"
+                      value={empresa.companyName}
+                      onChange={(e) => setEmpresa({ ...empresa, companyName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="empresa-tel">Teléfono principal</Label>
+                    <Input
+                      id="empresa-tel"
+                      type="tel"
+                      placeholder="+57 300 000 0000"
+                      value={empresa.companyPhone}
+                      onChange={(e) => setEmpresa({ ...empresa, companyPhone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="empresa-email">Email de contacto</Label>
+                    <Input
+                      id="empresa-email"
+                      type="email"
+                      placeholder="contacto@inmobiliaria.com"
+                      value={empresa.companyEmail}
+                      onChange={(e) => setEmpresa({ ...empresa, companyEmail: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="empresa-dir">Dirección</Label>
+                    <Input
+                      id="empresa-dir"
+                      placeholder="Calle 123 #45-67"
+                      value={empresa.companyAddress}
+                      onChange={(e) => setEmpresa({ ...empresa, companyAddress: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="empresa-ciudad">Ciudad</Label>
+                    <Input
+                      id="empresa-ciudad"
+                      placeholder="Bogotá"
+                      value={empresa.companyCity}
+                      onChange={(e) => setEmpresa({ ...empresa, companyCity: e.target.value })}
+                    />
+                  </div>
+                  <Button onClick={guardarEmpresa} disabled={savingEmpresa} className="w-full sm:w-auto">
+                    {savingEmpresa ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Guardar cambios
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

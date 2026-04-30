@@ -3,7 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   Building2, Users, CalendarCheck, TrendingUp, ArrowRight,
+  AlertTriangle, CheckCircle2,
 } from 'lucide-react';
+
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -14,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { KpiCard } from '@/components/kpi-card/KpiCard';
-import { dashboardApi, clientsApi, propertiesApi, type Client } from '@/lib/api';
+import { dashboardApi, clientsApi, propertiesApi, rentalApi, type Client, type RentalContract } from '@/lib/api';
 import {
   interestColor, clientStatusLabel, clientStatusColor,
   formatRelative, formatPrice, propertyTypeLabel,
@@ -108,6 +110,12 @@ export default function DashboardPage() {
   const { data: recentProperties, isLoading: propsLoading } = useQuery({
     queryKey: ['properties-recent'],
     queryFn: async () => (await propertiesApi.getAll({ limit: 5, page: 1 })).data.data,
+  });
+
+  const { data: expiringContracts, isLoading: alertsLoading } = useQuery({
+    queryKey: ['rental-alerts-dashboard'],
+    queryFn: async () => (await rentalApi.getAlerts(15)).data.data as RentalContract[],
+    staleTime: 5 * 60 * 1000,
   });
 
   // Datos para el gráfico de barras: últimos 7 días
@@ -295,6 +303,69 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Contratos próximos a vencer ── */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-2 flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            <CardTitle className="text-base font-semibold text-slate-700">Contratos próximos a vencer</CardTitle>
+          </div>
+          <Link href="/admin/arriendos" className="text-xs text-blue-600 hover:underline">Ver todos</Link>
+        </CardHeader>
+        <CardContent>
+          {alertsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-4 rounded" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-3.5 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-6 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : (expiringContracts ?? []).length === 0 ? (
+            <div className="flex items-center gap-2 py-4 text-green-600">
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm font-medium">Todos los contratos están al día</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {(expiringContracts ?? []).slice(0, 5).map((c) => {
+                const weeks = Math.ceil((c.daysUntilExpiry ?? 0) / 7);
+                const urgente = weeks <= 4;
+                return (
+                  <div key={c.id} className="flex items-center gap-3 py-2.5">
+                    <AlertTriangle className={cn('h-4 w-4 flex-shrink-0', urgente ? 'text-red-500' : 'text-orange-400')} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">
+                        {c.property?.title ?? 'Inmueble'}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {c.client?.name ?? '–'} · Vence {c.endDate ? format(new Date(c.endDate), 'd MMM yyyy', { locale: es }) : '–'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={cn(
+                        'text-xs font-semibold px-2 py-0.5 rounded-full',
+                        urgente ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700',
+                      )}>
+                        {weeks === 0 ? 'Vence hoy' : `${weeks} sem.`}
+                      </span>
+                      <Link href={`/admin/arriendos/${c.id}`}>
+                        <ArrowRight className="h-4 w-4 text-slate-300 hover:text-slate-600 transition-colors" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

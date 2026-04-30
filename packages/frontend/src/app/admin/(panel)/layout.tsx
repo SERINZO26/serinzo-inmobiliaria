@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Building2,
@@ -15,20 +16,26 @@ import {
   LogOut,
   Menu,
   X,
+  FileText,
+  DollarSign,
+  Bell,
 } from 'lucide-react';
+import { rentalApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
 const navItems = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
-  { href: '/admin/inmuebles', label: 'Inmuebles', icon: Building2, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
-  { href: '/admin/clientes', label: 'Clientes', icon: Users, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
-  { href: '/admin/citas', label: 'Citas', icon: CalendarCheck, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
-  { href: '/admin/conversaciones', label: 'Conversaciones', icon: MessageSquare, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
-  { href: '/admin/equipo', label: 'Equipo', icon: UserCog, roles: ['ADMIN'] },
-  { href: '/admin/configuracion', label: 'Configuración', icon: Settings, roles: ['ADMIN'] },
+  { href: '/admin/dashboard',      label: 'Dashboard',      icon: LayoutDashboard, roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/inmuebles',      label: 'Inmuebles',      icon: Building2,       roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/clientes',       label: 'Clientes',       icon: Users,           roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/citas',          label: 'Citas',          icon: CalendarCheck,   roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/arriendos',      label: 'Arriendos',      icon: FileText,        roles: ['ADMIN', 'AGENT', 'ASSISTANT'], badge: 'arriendos' },
+  { href: '/admin/ventas',         label: 'Ventas',         icon: DollarSign,      roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/conversaciones', label: 'Conversaciones', icon: MessageSquare,   roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/equipo',         label: 'Equipo',         icon: UserCog,         roles: ['ADMIN'] },
+  { href: '/admin/configuracion',  label: 'Configuración',  icon: Settings,        roles: ['ADMIN'] },
 ];
 
 function roleLabel(role: string) {
@@ -45,6 +52,14 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role ?? '';
+
+  // Conteo de contratos próximos a vencer para el badge del sidebar
+  const { data: alertsData } = useQuery({
+    queryKey: ['rental-alerts-count'],
+    queryFn: async () => (await rentalApi.getAlerts()).data.data,
+    staleTime: 5 * 60 * 1000, // refrescar cada 5 minutos
+  });
+  const alertCount = alertsData?.length ?? 0;
 
   return (
     <aside className="flex flex-col h-full bg-slate-900 text-white w-60">
@@ -72,6 +87,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           .map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(item.href + '/');
+            const showBadge = item.badge === 'arriendos' && alertCount > 0;
             return (
               <Link
                 key={item.href}
@@ -86,6 +102,11 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                    {alertCount > 99 ? '99+' : alertCount}
+                  </span>
+                )}
               </Link>
             );
           })}

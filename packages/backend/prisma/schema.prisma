@@ -577,9 +577,12 @@ model RentalPayment {
   dueDate      DateTime
   paidAt       DateTime?
   amount       Decimal
-  // Monto neto al propietario (amount - comisión calculada)
+  // Monto neto al propietario (amount - comisión - arreglos)
   ownerPayment Decimal?
   commission   Decimal?
+  // Arreglos/imprevistos descontados del pago al propietario
+  repairAmount      Decimal?
+  repairDescription String?
   status       PaymentStatus @default(PENDIENTE)
   // URL del comprobante subido a Cloudinary
   receiptUrl   String?
@@ -622,4 +625,23 @@ model SaleContract {
   @@index([propertyId])
   @@index([clientId])
   @@map("sale_contracts")
+}
+
+// ─── CONFIGURACIÓN DEL SISTEMA ─────────────────────────────────────────────────
+
+model Settings {
+  id             String   @id @default("singleton")
+  companyName    String   @default("Mi Inmobiliaria")
+  companyPhone   String?
+  companyEmail   String?
+  companyAddress String?
+  companyCity    String?
+  companyLogoUrl String?
+  agentName      String   @default("Sofía")
+  agentTone      String   @default("amigable")
+  agentWelcome   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("settings")
 }

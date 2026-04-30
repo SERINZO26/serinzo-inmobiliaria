@@ -254,7 +254,11 @@ paymentsRouter.patch(
 );
 
 // ─── PATCH /:id/pagar ─────────────────────────────────────────────────────────
-// Marca la cuota como PAGADA. Acepta un comprobante (imagen o PDF) que sube a Cloudinary.
+// Marca la cuota como PAGADA. Acepta:
+//   - comprobante (imagen o PDF, opcional) → Cloudinary
+//   - repairAmount (string numérico en el body de FormData)
+//   - repairDescription (string en el body de FormData)
+// El ownerPayment se calcula: canon - comisión - arreglos
 
 paymentsRouter.patch(
   '/:id/pagar',
@@ -283,19 +287,31 @@ paymentsRouter.patch(
       receiptUrl = result.url;
     }
 
+    // Arreglos/imprevistos (vienen como string en FormData)
+    const repairAmount      = req.body.repairAmount ? Number(req.body.repairAmount) : 0;
+    const repairDescription = req.body.repairDescription || null;
+
+    if (repairAmount < 0) return error(res, 'El valor del arreglo no puede ser negativo', 400);
+
     // Recalcular commission y ownerPayment definitivos al momento del pago
+    // ownerPayment = canon - comisión - arreglos
     const amount     = Number(existing.amount);
-    const newOwner   = calcOwnerPayment(amount, contract.commissionPct);
-    const commission = newOwner !== null ? new Prisma.Decimal(amount - newOwner) : existing.commission;
-    const ownerPay   = newOwner !== null ? new Prisma.Decimal(newOwner)           : existing.ownerPayment;
+    const ownerBase  = calcOwnerPayment(amount, contract.commissionPct);
+    const commission = ownerBase !== null ? new Prisma.Decimal(amount - ownerBase) : existing.commission;
+    const ownerPay   = ownerBase !== null
+      ? new Prisma.Decimal(ownerBase - repairAmount)
+      : existing.ownerPayment;
 
     const updated = await prisma.rentalPayment.update({
       where: { id: existing.id },
       data: {
-        status:      PaymentStatus.PAGADO,
-        paidAt:      new Date(),
+        status:       PaymentStatus.PAGADO,
+        paidAt:       new Date(),
         commission,
         ownerPayment: ownerPay,
+        ...(repairAmount > 0 && { repairAmount: new Prisma.Decimal(repairAmount) }),
+        ...(repairDescription && { repairDescription }),
+        ...(req.body.notes && { notes: req.body.notes }),
         ...(receiptUrl && { receiptUrl }),
       },
     });
