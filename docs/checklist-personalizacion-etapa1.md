@@ -191,6 +191,24 @@ Ir a /equipo → Agregar usuario para cada persona del equipo:
 - [ ] Marcar 2-3 inmuebles como "Destacados" para el home
 - [ ] Verificar que los inmuebles aparecen en el sitio público
 
+### Configuración inicial de la empresa (NUEVO)
+Ir a /admin/configuracion → tab "Mi empresa":
+- [ ] Subir logo de la inmobiliaria (PNG o JPG, fondo transparente ideal)
+- [ ] Nombre de la inmobiliaria
+- [ ] Teléfono de contacto
+- [ ] Email de contacto
+- [ ] Dirección de la oficina
+- [ ] Ciudad
+- [ ] Guardar cambios
+Esta información aparece en los PDFs de liquidación de arriendo y en el panel.
+
+### Configuración del agente Sofía
+Ir a /admin/configuracion → tab "Agente IA":
+- [ ] Nombre del agente (default: Sofía)
+- [ ] Tono (Amigable / Profesional / Neutral)
+- [ ] Mensaje de bienvenida personalizado
+- [ ] Guardar cambios
+
 ---
 
 ## PASO 8 — DEPLOY EN PRODUCCIÓN
@@ -233,12 +251,16 @@ Ir a /equipo → Agregar usuario para cada persona del equipo:
 
 ### Panel de administración
 - [ ] Login funciona con las credenciales reales del cliente
-- [ ] Dashboard muestra KPIs
+- [ ] Dashboard muestra KPIs y widget de contratos próximos a vencer
 - [ ] Se puede crear y editar un inmueble con fotos
 - [ ] Se puede crear y editar un cliente
 - [ ] Se puede agendar una cita
+- [ ] Módulo Arriendos: crear contrato, genera pagos automáticamente
+- [ ] Módulo Arriendos: registrar pago con comprobante y arreglos
+- [ ] Módulo Arriendos: generar PDF de liquidación con logo y datos empresa
+- [ ] Módulo Ventas: registrar venta con comisión calculada
 - [ ] Módulo Equipo muestra los usuarios creados
-- [ ] Configuración guarda los datos de la empresa
+- [ ] Configuración: logo, datos empresa y Sofía guardados correctamente
 
 ### Seguridad
 - [ ] Las credenciales del seed están desactivadas
@@ -257,11 +279,16 @@ Ir a /equipo → Agregar usuario para cada persona del equipo:
 - [ ] Instrucciones para cambiar contraseña (desde /configuracion → Cuenta)
 - [ ] Guía rápida de uso del panel (ver guia-usuario.md)
 
-### Capacitación (recomendada 1-2 horas)
-- [ ] Mostrar cómo agregar y editar inmuebles
+### Capacitación (recomendada 2-3 horas)
+- [ ] Mostrar cómo agregar y editar inmuebles con fotos
 - [ ] Mostrar cómo gestionar clientes en el CRM
 - [ ] Mostrar cómo agendar y gestionar citas
-- [ ] Mostrar el dashboard de KPIs
+- [ ] Mostrar cómo crear un contrato de arriendo y sus pagos mensuales
+- [ ] Mostrar cómo registrar un pago con arreglos y subir comprobante
+- [ ] Mostrar cómo generar el PDF de liquidación para el propietario
+- [ ] Mostrar cómo registrar una venta con su comisión
+- [ ] Mostrar el dashboard de KPIs y alertas de contratos
+- [ ] Mostrar cómo editar la configuración (logo, datos, Sofía)
 - [ ] Resolver dudas
 
 ### Post-entrega
@@ -299,5 +326,5 @@ Usuario admin: ________________________________
 Contraseña admin: ________________________________
 
 ---
-Versión del checklist: 1.0 — Etapa 1
-Última actualización: Abril 2025
+Versión del checklist: 2.0 — Etapa Silver completa (con módulo de contratos)
+Última actualización: Abril 2026
