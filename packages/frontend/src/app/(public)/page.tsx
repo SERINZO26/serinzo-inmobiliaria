@@ -117,16 +117,27 @@ export default function HomePage() {
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-br from-slate-800 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+      <section
+        className="relative min-h-[600px] flex items-center justify-center text-white"
+        style={{
+          backgroundImage:    'url(/hero-bg.jpg)',
+          backgroundSize:     'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat:   'no-repeat',
+        }}
+      >
+        {/* Overlay para legibilidad del texto */}
+        <div className="absolute inset-0 bg-black/55" />
+
+        {/* Contenido */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
           <div className="max-w-2xl mx-auto text-center mb-10">
-            {/* CAMBIO 1 — Título en 2 líneas */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-4 drop-shadow-md">
               Sabemos que cada espacio
               <br />
               tiene un propósito.
             </h1>
-            <p className="text-lg sm:text-xl text-slate-300">
+            <p className="text-lg sm:text-xl text-slate-200 drop-shadow">
               Te ayudamos a encontrar el lugar ideal, con un acompañamiento experto en cada paso.
             </p>
           </div>
