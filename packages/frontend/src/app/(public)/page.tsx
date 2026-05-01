@@ -118,7 +118,7 @@ export default function HomePage() {
         }}
       >
         {/* Overlay para legibilidad del texto */}
-        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-black/50" />
 
         {/* Contenido */}
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
