@@ -4,6 +4,34 @@ import { Prisma, ClientSource, ClientStatus, Operation } from '../../lib/generat
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAdmin, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
+import { sendEmail, sendWhatsAppText } from '../../services/messaging';
+
+/** Envía notificación al admin cuando se registra un cliente nuevo */
+async function notifyNewClient(clientName: string, clientPhone: string) {
+  try {
+    const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } });
+    if (!settings?.notifyNewClient) return;
+
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN', status: 'ACTIVE' },
+      select: { email: true, phone: true },
+    });
+
+    const msg = `🆕 Nuevo cliente registrado: ${clientName} — ${clientPhone}`;
+    const html = `<p>${msg}</p>`;
+
+    for (const admin of admins) {
+      if (admin.email) {
+        await sendEmail(admin.email, 'Nuevo cliente registrado', html).catch(() => {});
+      }
+      if (admin.phone) {
+        await sendWhatsAppText(`+57${admin.phone.replace(/\D/g, '')}`, msg).catch(() => {});
+      }
+    }
+  } catch {
+    // Las notificaciones no deben bloquear la respuesta
+  }
+}
 
 export const clientsRouter = Router();
 
@@ -128,6 +156,9 @@ clientsRouter.post(
         assignedAgentId: parsed.data.assignedAgentId || req.user!.id,
       },
     });
+
+    // Notificar al admin en background (no bloquea la respuesta)
+    notifyNewClient(client.name, client.phone ?? '').catch(() => {});
 
     return success(res, client, 201);
   })

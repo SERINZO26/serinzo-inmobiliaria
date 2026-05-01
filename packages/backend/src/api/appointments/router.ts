@@ -4,6 +4,35 @@ import { Prisma, AppointmentStatus } from '../../lib/generated/prisma';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
+import { sendEmail, sendWhatsAppText } from '../../services/messaging';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+/** Notifica al admin cuando se agenda una cita nueva */
+async function notifyNewAppointment(
+  clientName: string,
+  propertyTitle: string,
+  scheduledAt: Date
+) {
+  try {
+    const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } });
+    if (!settings?.notifyAppointment) return;
+
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN', status: 'ACTIVE' },
+      select: { email: true, phone: true },
+    });
+
+    const fecha = format(scheduledAt, "d 'de' MMMM 'a las' HH:mm", { locale: es });
+    const msg = `📅 Nueva cita agendada: ${clientName} — ${propertyTitle} — ${fecha}`;
+    const html = `<p>${msg}</p>`;
+
+    for (const admin of admins) {
+      if (admin.email) await sendEmail(admin.email, 'Nueva cita agendada', html).catch(() => {});
+      if (admin.phone) await sendWhatsAppText(`+57${admin.phone.replace(/\D/g, '')}`, msg).catch(() => {});
+    }
+  } catch { /* no bloquea */ }
+}
 
 export const appointmentsRouter = Router();
 
@@ -174,6 +203,13 @@ appointmentsRouter.post(
         agent: { select: { id: true, name: true } },
       },
     });
+
+    // Notificar al admin en background
+    notifyNewAppointment(
+      appointment.client?.name ?? 'Cliente',
+      appointment.property?.title ?? 'Inmueble',
+      scheduledAt
+    ).catch(() => {});
 
     return success(res, appointment, 201);
   })

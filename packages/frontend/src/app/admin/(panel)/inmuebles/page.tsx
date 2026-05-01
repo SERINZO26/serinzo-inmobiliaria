@@ -135,7 +135,7 @@ export default function InmueblesPage() {
           <h1 className="text-2xl font-bold text-slate-800">Inmuebles</h1>
           <p className="text-slate-500 text-sm mt-0.5">{total} inmueble{total !== 1 ? 's' : ''} en total</p>
         </div>
-        <Button onClick={() => router.push('/inmuebles/nuevo')} className="bg-green-600 hover:bg-green-700 gap-2">
+        <Button onClick={() => router.push('/admin/inmuebles/nuevo')} className="bg-green-600 hover:bg-green-700 gap-2">
           <Plus className="h-4 w-4" />
           Agregar inmueble
         </Button>

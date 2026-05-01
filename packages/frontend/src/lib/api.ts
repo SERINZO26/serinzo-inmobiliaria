@@ -580,6 +580,10 @@ export interface Settings {
   agentName: string;
   agentTone: string;
   agentWelcome: string | null;
+  notifyNewClient: boolean;
+  notifyHighInterest: boolean;
+  notifyAppointment: boolean;
+  notifyAppointmentReminder: boolean;
   createdAt: string;
   updatedAt: string;
 }

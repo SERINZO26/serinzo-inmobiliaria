@@ -200,6 +200,13 @@ export default function ConfiguracionPage() {
         companyAddress: settingsData.companyAddress ?? '',
         companyCity:    settingsData.companyCity    ?? '',
       });
+      // Sincronizar toggles de notificaciones desde la BD
+      setNotif({
+        nuevoCliente:      settingsData.notifyNewClient          ?? true,
+        nuevaCita:         settingsData.notifyAppointment        ?? true,
+        clienteInteres5:   settingsData.notifyHighInterest       ?? true,
+        recordatoriosCitas: settingsData.notifyAppointmentReminder ?? true,
+      });
     }
   }, [settingsData]);
 
@@ -212,15 +219,14 @@ export default function ConfiguracionPage() {
     })
   );
 
-  // Notificaciones
-  const [notif, setNotif] = useState<NotifConfig>(() =>
-    loadConfig('config_notif', {
-      nuevoCliente: true,
-      nuevaCita: true,
-      clienteInteres5: true,
-      recordatoriosCitas: true,
-    })
-  );
+  // Notificaciones — se sincroniza desde la API cuando llegan los settings
+  const [notif, setNotif] = useState<NotifConfig>({
+    nuevoCliente: true,
+    nuevaCita: true,
+    clienteInteres5: true,
+    recordatoriosCitas: true,
+  });
+  const [savingNotif, setSavingNotif] = useState(false);
 
   // Cuenta
   const [cuenta, setCuenta] = useState<CuentaForm>({
@@ -274,10 +280,23 @@ export default function ConfiguracionPage() {
     toast({ title: 'Agente actualizado', description: 'La configuración del agente IA se guardó.' });
   };
 
-  // ── Guardado notificaciones ───────────────────────────────────────────────
-  const guardarNotif = () => {
-    saveConfig('config_notif', notif);
-    toast({ title: 'Preferencias guardadas', description: 'Tus notificaciones fueron actualizadas.' });
+  // ── Guardado notificaciones → API real ───────────────────────────────────
+  const guardarNotif = async () => {
+    setSavingNotif(true);
+    try {
+      await settingsApi.update({
+        notifyNewClient:           notif.nuevoCliente,
+        notifyAppointment:         notif.nuevaCita,
+        notifyHighInterest:        notif.clienteInteres5,
+        notifyAppointmentReminder: notif.recordatoriosCitas,
+      });
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast({ title: 'Preferencias guardadas', description: 'Tus notificaciones fueron actualizadas.' });
+    } catch {
+      toast({ title: 'Error al guardar', description: 'No se pudieron guardar las preferencias.', variant: 'destructive' });
+    } finally {
+      setSavingNotif(false);
+    }
   };
 
   // ── Actualizar cuenta ─────────────────────────────────────────────────────
@@ -502,8 +521,8 @@ export default function ConfiguracionPage() {
                   onChange={(v) => setNotif({ ...notif, recordatoriosCitas: v })}
                 />
               </div>
-              <Button onClick={guardarNotif} className="w-full sm:w-auto">
-                Guardar preferencias
+              <Button onClick={guardarNotif} disabled={savingNotif} className="w-full sm:w-auto">
+                {savingNotif ? 'Guardando...' : 'Guardar preferencias'}
               </Button>
             </CardContent>
           </Card>

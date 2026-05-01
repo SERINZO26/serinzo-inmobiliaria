@@ -640,6 +640,11 @@ model Settings {
   agentName      String   @default("Sofía")
   agentTone      String   @default("amigable")
   agentWelcome   String?
+  // Preferencias de notificación al equipo
+  notifyNewClient          Boolean @default(true)
+  notifyHighInterest       Boolean @default(true)
+  notifyAppointment        Boolean @default(true)
+  notifyAppointmentReminder Boolean @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

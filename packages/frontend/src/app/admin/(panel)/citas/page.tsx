@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import {
@@ -27,7 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { appointmentsApi, clientsApi, propertiesApi, type Appointment, type AppointmentStatus } from '@/lib/api';
+import { appointmentsApi, clientsApi, propertiesApi, staffApi, type Appointment, type AppointmentStatus } from '@/lib/api';
 import {
   formatDateTime, formatDate, formatTime, appointmentStatusColor, appointmentStatusLabel,
 } from '@/lib/format';
@@ -49,12 +49,11 @@ const STATUS_OPTIONS = [
 
 function appointmentBorderColor(status: string): string {
   const map: Record<string, string> = {
-    PENDIENTE: 'border-yellow-400',
-    CONFIRMADA: 'border-blue-400',
-    REAGENDADA: 'border-purple-400',
-    CANCELADA: 'border-red-300',
-    REALIZADA: 'border-green-400',
-    NO_ASISTIO: 'border-gray-300',
+    PENDIENTE:  'border-orange-400 bg-orange-50',
+    CONFIRMADA: 'border-green-500 bg-green-50',
+    REAGENDADA: 'border-blue-400 bg-blue-50',
+    REALIZADA:  'border-emerald-400 bg-emerald-50',
+    NO_ASISTIO: 'border-gray-300 bg-gray-50',
   };
   return map[status] ?? 'border-gray-300';
 }
@@ -263,6 +262,8 @@ interface CreateModalProps {
 
 function CreateModal({ open, onClose, defaultAgentId }: CreateModalProps) {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'ADMIN';
   const [clientId, setClientId] = useState('');
   const [propertyId, setPropertyId] = useState('');
   const [agentId, setAgentId] = useState(defaultAgentId ?? '');
@@ -285,6 +286,23 @@ function CreateModal({ open, onClose, defaultAgentId }: CreateModalProps) {
     queryFn: async () => (await propertiesApi.getAll({ limit: 100, status: 'DISPONIBLE' })).data.data,
     enabled: open,
   });
+
+  // Lista de agentes para el select (solo se carga si es admin)
+  const { data: agents } = useQuery({
+    queryKey: ['agents-select'],
+    queryFn: async () => (await staffApi.getAll({ role: 'AGENT', status: 'ACTIVE' })).data.data,
+    enabled: open && isAdmin,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const agentList = agents ?? [];
+
+  // Si hay un solo agente y no hay defaultAgentId, preseleccionarlo automáticamente
+  useEffect(() => {
+    if (isAdmin && !agentId && agentList.length === 1) {
+      setAgentId(agentList[0].id);
+    }
+  }, [agentList, isAdmin, agentId]);
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -365,14 +383,30 @@ function CreateModal({ open, onClose, defaultAgentId }: CreateModalProps) {
             </Select>
           </div>
 
-          {/* ID del agente */}
+          {/* Agente responsable */}
           <div>
-            <Label className="text-slate-600 mb-1.5 block">ID del agente *</Label>
-            <Input
-              placeholder="ID del agente responsable"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-            />
+            <Label className="text-slate-600 mb-1.5 block">Agente responsable *</Label>
+            {isAdmin ? (
+              <Select value={agentId} onValueChange={setAgentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar agente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {agentList.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              // Para rol AGENT: campo readonly mostrando el nombre del agente
+              <Input
+                value={session?.user?.name ?? 'Asignado automáticamente'}
+                readOnly
+                className="bg-slate-50 text-slate-500 cursor-not-allowed"
+              />
+            )}
           </div>
 
           {/* Fecha y hora */}
@@ -489,7 +523,7 @@ function WeekView({ weekStart, appointments, onSelect }: WeekViewProps) {
                       key={apt.id}
                       onClick={() => onSelect(apt)}
                       className={cn(
-                        'w-full text-left rounded-md border-l-4 bg-slate-50 hover:bg-slate-100 px-2 py-1.5 transition-colors',
+                        'w-full text-left rounded-md border-l-4 hover:opacity-80 px-2 py-1.5 transition-colors',
                         appointmentBorderColor(apt.status),
                       )}
                     >
@@ -778,7 +812,7 @@ export default function CitasPage() {
             <Skeleton className="h-6 w-32" />
           </div>
         ) : (
-          <WeekView weekStart={weekStart} appointments={weekApts} onSelect={openDetail} />
+          <WeekView weekStart={weekStart} appointments={weekApts.filter((a) => a.status !== 'CANCELADA')} onSelect={openDetail} />
         )
       )}
 

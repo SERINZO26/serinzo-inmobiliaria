@@ -115,7 +115,7 @@ export default function ClientesPage() {
           <p className="text-slate-500 text-sm mt-0.5">{total} cliente{total !== 1 ? 's' : ''} en total</p>
         </div>
         <Button
-          onClick={() => router.push('/clientes/nuevo')}
+          onClick={() => router.push('/admin/clientes/nuevo')}
           className="bg-green-600 hover:bg-green-700 gap-2"
         >
           <Plus className="h-4 w-4" />

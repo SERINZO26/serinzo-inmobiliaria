@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
@@ -64,13 +65,19 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="flex flex-col h-full bg-slate-900 text-white w-60">
       {/* Logo */}
-      <div className="flex items-center justify-between px-5 py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-white/10 p-1.5 rounded-lg">
-            <Building2 className="h-5 w-5" />
+      <div className="flex items-center justify-between px-4 py-4">
+        <Link href="/admin/dashboard">
+          <div className="bg-white rounded-lg p-2">
+            <Image
+              src="/logo-serinzo.png"
+              alt="Serinzo Inmobiliaria"
+              width={140}
+              height={56}
+              className="h-12 w-auto object-contain"
+              priority
+            />
           </div>
-          <span className="font-semibold text-sm leading-tight">Serinzo<br />Inmobiliaria</span>
-        </div>
+        </Link>
         {onClose && (
           <button onClick={onClose} className="text-slate-400 hover:text-white lg:hidden">
             <X className="h-5 w-5" />

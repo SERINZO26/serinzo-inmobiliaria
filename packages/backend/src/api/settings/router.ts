@@ -37,6 +37,11 @@ const settingsSchema = z.object({
   agentName:      z.string().min(1).max(60).optional(),
   agentTone:      z.enum(['amigable', 'profesional', 'neutral']).optional(),
   agentWelcome:   z.string().max(500).optional().nullable(),
+  // Preferencias de notificación
+  notifyNewClient:           z.boolean().optional(),
+  notifyHighInterest:        z.boolean().optional(),
+  notifyAppointment:         z.boolean().optional(),
+  notifyAppointmentReminder: z.boolean().optional(),
 });
 
 // ─── GET / ────────────────────────────────────────────────────────────────────
