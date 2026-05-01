@@ -98,6 +98,12 @@ propertiesRouter.get(
       where.city = { contains: req.query.city as string, mode: 'insensitive' };
     if (req.query.bedrooms)
       where.bedrooms = { gte: parseInt(req.query.bedrooms as string, 10) };
+    if (req.query.minBedrooms)
+      where.bedrooms = { gte: parseInt(req.query.minBedrooms as string, 10) };
+    if (req.query.minBathrooms)
+      where.bathrooms = { gte: parseInt(req.query.minBathrooms as string, 10) };
+    if (req.query.minParking)
+      where.parking = { gte: parseInt(req.query.minParking as string, 10) };
 
     const priceFilter: Prisma.DecimalFilter = {};
     if (req.query.minPrice) priceFilter.gte = parseFloat(req.query.minPrice as string);

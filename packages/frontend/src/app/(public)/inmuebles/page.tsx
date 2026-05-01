@@ -27,6 +27,8 @@ interface Filtros {
   minPrice: string;
   maxPrice: string;
   minBedrooms: string;
+  minBathrooms: string;
+  minParking: string;
   sortBy: string;
 }
 
@@ -41,6 +43,8 @@ const TIPO_OPTS = [
 ];
 
 const HABITACIONES = ['1', '2', '3', '4', '5'];
+const BANOS       = ['1', '2', '3'];
+const PARQUEADEROS = ['1', '2'];
 
 const PAGE_SIZE = 9;
 
@@ -171,6 +175,52 @@ function FilterPanel({
         </div>
       </div>
 
+      {/* Baños mínimos */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Baños mínimos
+        </Label>
+        <div className="flex gap-1.5 flex-wrap">
+          {BANOS.map((n) => (
+            <button
+              key={n}
+              onClick={() => onChange({ minBathrooms: filtros.minBathrooms === n ? '' : n })}
+              className={cn(
+                'h-9 w-9 rounded-lg text-sm font-semibold border transition-colors',
+                filtros.minBathrooms === n
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+              )}
+            >
+              {n}+
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Parqueaderos */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Parqueaderos
+        </Label>
+        <div className="flex gap-1.5 flex-wrap">
+          {PARQUEADEROS.map((n) => (
+            <button
+              key={n}
+              onClick={() => onChange({ minParking: filtros.minParking === n ? '' : n })}
+              className={cn(
+                'h-9 w-9 rounded-lg text-sm font-semibold border transition-colors',
+                filtros.minParking === n
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+              )}
+            >
+              {n}+
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Botones */}
       <div className="space-y-2 pt-2">
         <Button onClick={onApply} className="w-full">
@@ -200,6 +250,8 @@ function InmueblesContent() {
     minPrice: searchParams.get('minPrice') ?? '',
     maxPrice: searchParams.get('maxPrice') ?? '',
     minBedrooms: searchParams.get('minBedrooms') ?? '',
+    minBathrooms: searchParams.get('minBathrooms') ?? '',
+    minParking: searchParams.get('minParking') ?? '',
     sortBy: searchParams.get('sortBy') ?? 'newest',
   });
 
@@ -217,7 +269,9 @@ function InmueblesContent() {
     if (f.city.trim()) params.city = f.city.trim();
     if (f.minPrice) params.minPrice = f.minPrice;
     if (f.maxPrice) params.maxPrice = f.maxPrice;
-    if (f.minBedrooms) params.minBedrooms = f.minBedrooms;
+    if (f.minBedrooms)  params.minBedrooms  = f.minBedrooms;
+    if (f.minBathrooms) params.minBathrooms = f.minBathrooms;
+    if (f.minParking)   params.minParking   = f.minParking;
     if (f.sortBy === 'price_asc') params.sortBy = 'price_asc';
     if (f.sortBy === 'price_desc') params.sortBy = 'price_desc';
     return params;
@@ -245,7 +299,9 @@ function InmueblesContent() {
     if (filtros.city) params.set('city', filtros.city);
     if (filtros.minPrice) params.set('minPrice', filtros.minPrice);
     if (filtros.maxPrice) params.set('maxPrice', filtros.maxPrice);
-    if (filtros.minBedrooms) params.set('minBedrooms', filtros.minBedrooms);
+    if (filtros.minBedrooms)  params.set('minBedrooms',  filtros.minBedrooms);
+    if (filtros.minBathrooms) params.set('minBathrooms', filtros.minBathrooms);
+    if (filtros.minParking)   params.set('minParking',   filtros.minParking);
     if (filtros.sortBy !== 'newest') params.set('sortBy', filtros.sortBy);
     router.push(`/inmuebles?${params.toString()}`, { scroll: false });
   };
@@ -258,6 +314,8 @@ function InmueblesContent() {
       minPrice: '',
       maxPrice: '',
       minBedrooms: '',
+      minBathrooms: '',
+      minParking: '',
       sortBy: 'newest',
     };
     setFiltros(empty);
@@ -430,7 +488,7 @@ export default function InmueblesPage() {
       fallback={
         <div className="bg-slate-50 min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+            <div className="animate-spin h-8 w-8 border-2 border-[#B8973E] border-t-transparent rounded-full mx-auto mb-3" />
             <p className="text-slate-400 text-sm">Cargando inmuebles...</p>
           </div>
         </div>
