@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Building2, MessageCircle, Menu, X } from 'lucide-react';
+import { MessageCircle, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
@@ -24,13 +25,15 @@ function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="bg-slate-800 text-white p-1.5 rounded-lg">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <span className="font-bold text-slate-800 text-base sm:text-lg leading-tight">
-              Serinzo Inmobiliaria
-            </span>
+          <Link href="/" className="flex-shrink-0">
+            <Image
+              src="/logo-serinzo.png"
+              alt="Serinzo Inmobiliaria"
+              width={130}
+              height={50}
+              className="object-contain w-28 md:w-36"
+              priority
+            />
           </Link>
 
           {/* Nav desktop */}
@@ -116,11 +119,14 @@ function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Marca */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="bg-white/10 p-1.5 rounded-lg">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <span className="font-bold text-white">Serinzo Inmobiliaria</span>
+            <div className="mb-3">
+              <Image
+                src="/logo-serinzo.png"
+                alt="Serinzo Inmobiliaria"
+                width={110}
+                height={42}
+                className="object-contain brightness-0 invert"
+              />
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
               Tu aliado de confianza en la compra, venta y arriendo de inmuebles.
