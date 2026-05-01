@@ -103,16 +103,7 @@ export default function HomePage() {
     queryFn: () => propertiesApi.getPublic({ featured: 'true', limit: 6 }),
   });
 
-  // Total de inmuebles publicados para el contador dinámico
-  const { data: totalData } = useQuery({
-    queryKey: ['properties', 'public', 'count'],
-    queryFn: () => propertiesApi.getPublic({ limit: 1 }),
-    staleTime: 10 * 60 * 1000,
-  });
-
-  const featured   = data?.data?.data ?? [];
-  const totalInmuebles = (totalData?.data?.meta?.total ?? 0);
-  const countLabel = totalInmuebles > 0 ? `${totalInmuebles}+` : '50+';
+  const featured = data?.data?.data ?? [];
 
   return (
     <>
@@ -153,7 +144,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             {[
               {
-                number: countLabel,
+                number: '10+',
                 label:  'Inmuebles verificados',
                 Icon:   CheckCircle,
               },

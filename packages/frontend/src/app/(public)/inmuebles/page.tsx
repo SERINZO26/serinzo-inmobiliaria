@@ -192,7 +192,7 @@ function FilterPanel({
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
               )}
             >
-              {n}
+              {n === '3' ? '3+' : n}
             </button>
           ))}
         </div>
@@ -215,7 +215,7 @@ function FilterPanel({
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
               )}
             >
-              {n}
+              {n === '2' ? '2+' : n}
             </button>
           ))}
         </div>
