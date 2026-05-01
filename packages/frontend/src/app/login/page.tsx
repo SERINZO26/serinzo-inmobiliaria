@@ -43,7 +43,7 @@ export default function LoginPage() {
         <div className="bg-slate-800 text-white p-3 rounded-xl">
           <Building2 className="h-7 w-7" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-800">Sistema Inmobiliario</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Serinzo Inmobiliaria</h1>
         <p className="text-slate-500 text-sm">Panel de administración</p>
       </div>
 
@@ -97,7 +97,11 @@ export default function LoginPage() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-[#B8973E] hover:bg-[#8B6E2E] text-white"
+              disabled={loading}
+            >
               {loading ? 'Ingresando...' : 'Iniciar sesión'}
             </Button>
           </form>

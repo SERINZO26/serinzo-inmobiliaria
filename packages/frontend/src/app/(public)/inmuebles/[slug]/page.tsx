@@ -33,7 +33,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const WA_NUMBER = '57300000000';
+const WA_NUMBER = '573182063924';
 
 // ─── Galería ──────────────────────────────────────────────────────────────────
 
@@ -422,7 +422,7 @@ export default function PropertyDetailPage() {
                     href={waUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-colors"
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-[#B8973E] hover:bg-[#8B6E2E] text-white font-semibold rounded-xl transition-colors"
                   >
                     <MessageCircle className="h-5 w-5" />
                     Escribir por WhatsApp
@@ -438,7 +438,7 @@ export default function PropertyDetailPage() {
                   </Button>
 
                   <a
-                    href="tel:+57300000000"
+                    href="tel:+573182063924"
                     className="flex items-center justify-center gap-2 w-full py-2.5 px-4 border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm"
                   >
                     <Phone className="h-4 w-4" />

@@ -6,8 +6,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Sistema Inmobiliario',
-  description: 'Panel de administración inmobiliaria con agentes IA',
+  title: 'Serinzo Inmobiliaria',
+  description: 'Panel de administración Serinzo Inmobiliaria con agentes IA',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

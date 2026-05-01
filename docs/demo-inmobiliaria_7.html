@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo — Sistema Inmobiliario con IA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0F172A;
+    color: #F8FAFC;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .presentation {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    display: none;
+    width: 100%;
+    height: 100vh;
+    position: absolute;
+    top: 0; left: 0;
+    padding: 60px 80px;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .slide.active { display: flex; }
+
+  /* NAV */
+  .nav {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 100;
+    background: rgba(255,255,255,0.08);
+    padding: 10px 24px;
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+  }
+
+  .nav button {
+    background: none;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+
+  .nav button:hover { background: rgba(255,255,255,0.15); }
+
+  .slide-counter {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* DOTS */
+  .dots {
+    position: fixed;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .dot.active { background: #38BDF8; transform: scale(1.4); }
+
+  /* SLIDE 1 — PORTADA */
+  .slide-1 { background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 100%); }
+
+  .slide-1 .badge {
+    display: inline-block;
+    background: rgba(56,189,248,0.15);
+    border: 1px solid rgba(56,189,248,0.4);
+    color: #38BDF8;
+    padding: 6px 16px;
+    border-radius: 50px;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    margin-bottom: 28px;
+    width: fit-content;
+  }
+
+  .slide-1 h1 {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #94A3B8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .slide-1 .subtitle {
+    font-size: 22px;
+    color: #94A3B8;
+    margin-bottom: 48px;
+    max-width: 600px;
+    line-height: 1.5;
+  }
+
+  .slide-1 .stats {
+    display: flex;
+    gap: 48px;
+  }
+
+  .stat { text-align: left; }
+  .stat .number { font-size: 40px; font-weight: 700; color: #38BDF8; }
+  .stat .label { font-size: 14px; color: #64748B; margin-top: 4px; }
+
+  .slide-1 .visual {
+    position: absolute;
+    right: 80px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 380px;
+    height: 380px;
+    background: rgba(56,189,248,0.06);
+    border: 1px solid rgba(56,189,248,0.15);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .house-icon {
+    font-size: 80px;
+    filter: drop-shadow(0 0 30px rgba(56,189,248,0.5));
+  }
+
+  .ai-badge {
+    background: rgba(56,189,248,0.2);
+    border: 1px solid rgba(56,189,248,0.4);
+    color: #38BDF8;
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  /* SLIDE 2 — PROBLEMA */
+  .slide-2 { background: #0F172A; }
+
+  .slide-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #38BDF8;
+    margin-bottom: 16px;
+  }
+
+  .slide-heading {
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 48px;
+    max-width: 700px;
+  }
+
+  .pain-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    max-width: 800px;
+  }
+
+  .pain-card {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .pain-card .icon { font-size: 28px; margin-bottom: 12px; }
+  .pain-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #FCA5A5; }
+  .pain-card p { font-size: 14px; color: #94A3B8; line-height: 1.5; }
+
+  /* SLIDE 3 — SOLUCIÓN */
+  .slide-3 { background: linear-gradient(135deg, #0F172A 0%, #0D2B1F 100%); }
+
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 8px;
+  }
+
+  .module-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.2s;
+  }
+
+  .module-card:hover {
+    background: rgba(56,189,248,0.06);
+    border-color: rgba(56,189,248,0.2);
+    transform: translateY(-2px);
+  }
+
+  .module-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 14px;
+  }
+
+  .module-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .module-card p { font-size: 13px; color: #64748B; line-height: 1.5; }
+
+  .bg-blue { background: rgba(56,189,248,0.15); }
+  .bg-green { background: rgba(34,197,94,0.15); }
+  .bg-purple { background: rgba(168,85,247,0.15); }
+  .bg-amber { background: rgba(245,158,11,0.15); }
+  .bg-teal { background: rgba(20,184,166,0.15); }
+  .bg-pink { background: rgba(236,72,153,0.15); }
+
+  /* SLIDE 4 — SOFÍA */
+  .slide-4 { background: #0F172A; }
+
+  .sofia-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .chat-mockup {
+    background: #1E293B;
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 16px;
+  }
+
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #38BDF8, #6366F1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+  }
+
+  .chat-name { font-size: 14px; font-weight: 600; }
+  .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #22C55E; margin-left: auto; }
+
+  .msg { margin-bottom: 12px; }
+
+  .msg.client .bubble {
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px 12px 12px 4px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #CBD5E1;
+    display: inline-block;
+    max-width: 85%;
+  }
+
+  .msg.sofia { text-align: right; }
+
+  .msg.sofia .bubble {
+    background: rgba(56,189,248,0.15);
+    border: 1px solid rgba(56,189,248,0.2);
+    border-radius: 12px 12px 4px 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #E2E8F0;
+    display: inline-block;
+    max-width: 85%;
+    text-align: left;
+  }
+
+  .msg-label { font-size: 11px; color: #475569; margin-bottom: 4px; }
+
+  .sofia-features { display: flex; flex-direction: column; gap: 20px; }
+
+  .feature-item { display: flex; align-items: flex-start; gap: 16px; }
+
+  .feature-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(56,189,248,0.12);
+    border: 1px solid rgba(56,189,248,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .feature-text h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .feature-text p { font-size: 13px; color: #64748B; line-height: 1.4; }
+
+  /* SLIDE 5 — CRM */
+  .slide-5 { background: #0F172A; }
+
+  .crm-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+    margin-top: 8px;
+  }
+
+  .dashboard-mock {
+    background: #1E293B;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .kpi-card {
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .kpi-label { font-size: 11px; color: #475569; margin-bottom: 6px; }
+  .kpi-value { font-size: 22px; font-weight: 700; }
+  .kpi-blue { color: #38BDF8; }
+  .kpi-green { color: #22C55E; }
+  .kpi-amber { color: #F59E0B; }
+  .kpi-purple { color: #A78BFA; }
+
+  .funnel {
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .funnel-title { font-size: 11px; color: #475569; margin-bottom: 12px; }
+
+  .funnel-bar { margin-bottom: 8px; }
+  .funnel-label { display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8; margin-bottom: 4px; }
+  .funnel-track { background: rgba(255,255,255,0.06); border-radius: 4px; height: 6px; }
+  .funnel-fill { height: 6px; border-radius: 4px; }
+
+  .crm-features { display: flex; flex-direction: column; gap: 16px; }
+
+  .crm-feature {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+  }
+
+  .check { font-size: 18px; }
+  .crm-feature p { font-size: 14px; color: #CBD5E1; }
+
+  /* SLIDE 6 — WEB PÚBLICA */
+  .slide-6 { background: #0F172A; }
+
+  .web-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 48px;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .web-mock {
+    background: #F8FAFC;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .web-bar {
+    background: #1E293B;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .web-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .web-url {
+    background: rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: #94A3B8;
+    margin-left: 8px;
+  }
+
+  .web-hero {
+    background: #1E3A5F;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .web-hero h2 { color: white; font-size: 18px; margin-bottom: 8px; }
+  .web-hero p { color: #94A3B8; font-size: 12px; }
+
+  .web-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 16px;
+    background: #F1F5F9;
+  }
+
+  .prop-card {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+  }
+
+  .prop-img {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  .prop-info { padding: 8px; }
+  .prop-price { font-size: 12px; font-weight: 700; color: #1E293B; }
+  .prop-detail { font-size: 10px; color: #64748B; margin-top: 2px; }
+
+  .web-features { display: flex; flex-direction: column; gap: 14px; }
+
+  .web-feature { display: flex; align-items: center; gap: 12px; }
+  .web-feature span { font-size: 18px; }
+  .web-feature p { font-size: 14px; color: #CBD5E1; }
+
+  /* SLIDE 7 — ETAPAS */
+  .slide-7 { background: #0F172A; }
+
+  .phases-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .phase-card {
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid;
+    position: relative;
+  }
+
+  .phase-card.current {
+    background: rgba(56,189,248,0.08);
+    border-color: rgba(56,189,248,0.3);
+  }
+
+  .phase-card.next {
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  .phase-number {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .phase-card.current .phase-number { color: #38BDF8; }
+  .phase-card.next .phase-number { color: #475569; }
+
+  .phase-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .phase-card.current h3 { color: #F8FAFC; }
+  .phase-card.next h3 { color: #94A3B8; }
+
+  .phase-items { list-style: none; }
+  .phase-items li {
+    font-size: 13px;
+    color: #64748B;
+    padding: 4px 0;
+    padding-left: 16px;
+    position: relative;
+  }
+
+  .phase-items li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: #334155;
+  }
+
+  .phase-card.current .phase-items li { color: #94A3B8; }
+  .phase-card.current .phase-items li::before { color: #38BDF8; }
+
+  .ready-badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: #22C55E;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 50px;
+  }
+
+  /* SLIDE 8 — CTA */
+  .slide-8 {
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 100%);
+    align-items: center;
+    text-align: center;
+  }
+
+  .slide-8 h1 {
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 20px;
+    max-width: 700px;
+  }
+
+  .slide-8 .sub {
+    font-size: 20px;
+    color: #64748B;
+    margin-bottom: 48px;
+    max-width: 500px;
+  }
+
+  .cta-cards {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 48px;
+  }
+
+  .cta-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 24px 32px;
+    min-width: 200px;
+  }
+
+  .cta-card .emoji { font-size: 32px; margin-bottom: 10px; }
+  .cta-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .cta-card p { font-size: 13px; color: #64748B; }
+
+  .tagline {
+    font-size: 16px;
+    color: #38BDF8;
+    font-style: italic;
+  }
+
+  /* TRANSITIONS */
+  .slide { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="presentation">
+
+  <!-- SLIDE 1: PORTADA -->
+  <div class="slide slide-1 active">
+    <div class="badge">Sistema Inmobiliario con Inteligencia Artificial</div>
+    <h1>Tu inmobiliaria,<br>en piloto automático</h1>
+    <p class="subtitle">Un sistema completo que gestiona clientes, inmuebles y citas — con una IA que trabaja por ti las 24 horas.</p>
+    <div class="stats">
+      <div class="stat">
+        <div class="number">24/7</div>
+        <div class="label">Atención sin pausas</div>
+      </div>
+      <div class="stat">
+        <div class="number">0</div>
+        <div class="label">Personal adicional</div>
+      </div>
+      <div class="stat">
+        <div class="number">100%</div>
+        <div class="label">Tu negocio integrado</div>
+      </div>
+    </div>
+    <div class="visual">
+      <div class="house-icon">🏠</div>
+      <div class="ai-badge">✦ Powered by IA</div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: EL PROBLEMA -->
+  <div class="slide slide-2">
+    <div class="slide-title">El reto de empezar</div>
+    <h2 class="slide-heading">Manejar todo solo<br>tiene un costo real</h2>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="icon">📱</div>
+        <h3>Clientes que no esperan</h3>
+        <p>Si no respondes en minutos, buscan otra inmobiliaria. Perder clientes por velocidad de respuesta duele.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">📋</div>
+        <h3>Todo en papeles o en la cabeza</h3>
+        <p>Sin un sistema, pierdes el control de clientes, citas y disponibilidad. La información se dispersa.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">💸</div>
+        <h3>Contratos y pagos sin control</h3>
+        <p>Calcular comisiones, administración y pagos a propietarios cada mes a mano es tiempo y errores.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">🌐</div>
+        <h3>Sin presencia digital propia</h3>
+        <p>Depender solo de portales es depender de otros. Tu propia vitrina digital marca la diferencia.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: LA SOLUCIÓN -->
+  <div class="slide slide-3">
+    <div class="slide-title">La solución</div>
+    <h2 class="slide-heading">Todo tu negocio,<br>en un solo sistema</h2>
+    <div class="modules-grid" style="grid-template-columns: repeat(4, 1fr);">
+      <div class="module-card">
+        <div class="module-icon bg-blue">🤖</div>
+        <h3>Agente Sofía</h3>
+        <p>Atiende clientes por WhatsApp 24/7, detecta interés y agenda citas automáticamente.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-green">📊</div>
+        <h3>CRM inteligente</h3>
+        <p>Clientes organizados con nivel de interés, historial y seguimiento automático.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-purple">🌐</div>
+        <h3>Sitio web propio</h3>
+        <p>Tu vitrina digital con inmuebles, fotos y contacto — lista desde el día 1.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-amber">🏠</div>
+        <h3>Gestión de inmuebles</h3>
+        <p>Agrega, edita y publica inmuebles con fotos desde un panel sin código.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-teal">📄</div>
+        <h3>Contratos de arriendo</h3>
+        <p>Gestiona contratos, calcula pagos automáticamente y genera liquidaciones en PDF.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-pink">🤝</div>
+        <h3>Contratos de venta</h3>
+        <p>Registra ventas, calcula tu comisión y almacena los documentos digitalmente.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-coral" style="background: rgba(249,115,22,0.15);">🔔</div>
+        <h3>Recordatorios automáticos</h3>
+        <p>El sistema te avisa cada lunes por WhatsApp y email de pagos y contratos por vencer.</p>
+      </div>
+      <div class="module-card">
+        <div class="module-icon bg-green">📈</div>
+        <h3>Dashboard y KPIs</h3>
+        <p>Ve conversiones, pagos pendientes y contratos próximos a vencer de un vistazo.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: SOFÍA -->
+  <div class="slide slide-4">
+    <div class="slide-title">La estrella del sistema</div>
+    <h2 class="slide-heading" style="margin-bottom: 32px;">Sofía trabaja mientras<br>tú descansas</h2>
+    <div class="sofia-layout">
+      <div class="chat-mockup">
+        <div class="chat-header">
+          <div class="avatar">S</div>
+          <div>
+            <div class="chat-name">Sofía — Asistente IA</div>
+            <div style="font-size: 11px; color: #22C55E;">En línea ahora</div>
+          </div>
+          <div class="online-dot"></div>
+        </div>
+        <div class="msg client">
+          <div class="msg-label">Cliente · 11:34 pm</div>
+          <div class="bubble">Buenas noches, busco apartamento para arrendar en Chapinero, máximo 3 millones</div>
+        </div>
+        <div class="msg sofia">
+          <div class="msg-label">Sofía · 11:34 pm</div>
+          <div class="bubble">¡Hola! 👋 Encontré una excelente opción en Chapinero: 2 hab, 2 baños, piso 8 con parqueadero por $2.800.000. ¿Te envío fotos?</div>
+        </div>
+        <div class="msg client">
+          <div class="bubble">Sí por favor!</div>
+        </div>
+        <div class="msg sofia">
+          <div class="bubble">📸 Enviando 3 fotos... ¿Te gustaría agendar una visita esta semana?</div>
+        </div>
+        <div class="msg client">
+          <div class="bubble">El viernes a las 10am me queda bien</div>
+        </div>
+        <div class="msg sofia">
+          <div class="bubble">✅ ¡Listo! Cita confirmada para el viernes a las 10am. Te llegará un recordatorio 📅</div>
+        </div>
+      </div>
+      <div class="sofia-features">
+        <div class="feature-item">
+          <div class="feature-icon">🕐</div>
+          <div class="feature-text">
+            <h4>Responde en segundos, siempre</h4>
+            <p>No importa si son las 2am o un domingo festivo — Sofía nunca deja un cliente sin respuesta.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🧠</div>
+          <div class="feature-text">
+            <h4>Detecta el interés real</h4>
+            <p>Califica cada cliente del 1 al 5 según sus respuestas y te notifica cuando alguien está listo para comprar.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📸</div>
+          <div class="feature-text">
+            <h4>Envía fotos automáticamente</h4>
+            <p>Si el cliente muestra interés, Sofía envía las fotos del inmueble directamente al WhatsApp.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📅</div>
+          <div class="feature-text">
+            <h4>Agenda y confirma citas</h4>
+            <p>Verifica disponibilidad real y agenda visitas sin que tengas que intervenir.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: CRM & PANEL -->
+  <div class="slide slide-5">
+    <div class="slide-title">Panel de control</div>
+    <h2 class="slide-heading" style="margin-bottom: 32px;">Diseñado para personas,<br>no para ingenieros</h2>
+    <div class="crm-layout">
+      <div class="dashboard-mock">
+        <div style="font-size: 12px; color: #475569; margin-bottom: 12px; font-weight: 600;">DASHBOARD</div>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">Inmuebles activos</div>
+            <div class="kpi-value kpi-blue">24</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Clientes nuevos</div>
+            <div class="kpi-value kpi-green">+8</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Citas esta semana</div>
+            <div class="kpi-value kpi-amber">5</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Conversión</div>
+            <div class="kpi-value kpi-purple">34%</div>
+          </div>
+        </div>
+        <div class="funnel">
+          <div class="funnel-title">EMBUDO DE CLIENTES</div>
+          <div class="funnel-bar">
+            <div class="funnel-label"><span>Nuevos</span><span>48</span></div>
+            <div class="funnel-track"><div class="funnel-fill" style="width: 100%; background: #38BDF8;"></div></div>
+          </div>
+          <div class="funnel-bar">
+            <div class="funnel-label"><span>Calificados</span><span>31</span></div>
+            <div class="funnel-track"><div class="funnel-fill" style="width: 65%; background: #6366F1;"></div></div>
+          </div>
+          <div class="funnel-bar">
+            <div class="funnel-label"><span>Visitaron</span><span>18</span></div>
+            <div class="funnel-track"><div class="funnel-fill" style="width: 38%; background: #F59E0B;"></div></div>
+          </div>
+          <div class="funnel-bar">
+            <div class="funnel-label"><span>Cerraron</span><span>7</span></div>
+            <div class="funnel-track"><div class="funnel-fill" style="width: 15%; background: #22C55E;"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="crm-features">
+        <div class="crm-feature">
+          <span class="check">✅</span>
+          <p>Agrega inmuebles con fotos arrastrando archivos — sin tecnicismos</p>
+        </div>
+        <div class="crm-feature">
+          <span class="check">✅</span>
+          <p>Ve el historial completo de cada cliente: conversaciones, citas y preferencias</p>
+        </div>
+        <div class="crm-feature">
+          <span class="check">✅</span>
+          <p>Cambia el estado de un inmueble (disponible → vendido) con un clic</p>
+        </div>
+        <div class="crm-feature">
+          <span class="check">✅</span>
+          <p>Lee el transcript completo de cada conversación que tuvo Sofía</p>
+        </div>
+        <div class="crm-feature">
+          <span class="check">✅</span>
+          <p>Configura todo desde el panel — sin tocar una sola línea de código</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: CONTRATOS -->
+  <div class="slide slide-6" style="background: #0F172A;">
+    <div class="slide-title">Módulo financiero</div>
+    <h2 class="slide-heading" style="margin-bottom: 32px;">Contratos, pagos y comisiones<br>sin hacer cuentas a mano</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
+
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2); border-radius: 16px; padding: 20px;">
+          <div style="font-size: 13px; color: #38BDF8; font-weight: 600; margin-bottom: 12px;">📄 LIQUIDACIÓN DE ARRIENDO — Mayo 2026</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #CBD5E1;">
+              <span>Canon mensual</span><span>$1.500.000</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #94A3B8;">
+              <span>Comisión (10%)</span><span style="color: #EF4444;">- $150.000</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #94A3B8;">
+              <span>Administración</span><span style="color: #EF4444;">- $80.000</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #94A3B8;">
+              <span>Arreglo plomería</span><span style="color: #EF4444;">- $50.000</span>
+            </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: #22C55E;">
+              <span>Pago al propietario</span><span>$1.220.000</span>
+            </div>
+          </div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <div style="background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #22C55E; font-size: 11px; padding: 4px 10px; border-radius: 50px;">✓ Pagado</div>
+            <div style="background: rgba(255,255,255,0.06); color: #94A3B8; font-size: 11px; padding: 4px 10px; border-radius: 50px;">📎 Comprobante adjunto</div>
+            <div style="background: rgba(56,189,248,0.1); color: #38BDF8; font-size: 11px; padding: 4px 10px; border-radius: 50px;">📥 PDF generado</div>
+          </div>
+        </div>
+
+        <div style="background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); border-radius: 16px; padding: 20px;">
+          <div style="font-size: 13px; color: #F59E0B; font-weight: 600; margin-bottom: 12px;">🔔 RECORDATORIO AUTOMÁTICO — Lunes 8am</div>
+          <div style="font-size: 13px; color: #94A3B8; line-height: 1.6;">
+            📱 <strong style="color: #CBD5E1;">WhatsApp + Email</strong> al agente y al admin<br>
+            📋 Pagos pendientes de la semana<br>
+            ⚠️ Contratos que vencen en 15, 8 o 1 semana<br>
+            <span style="color: #64748B; font-size: 12px;">Sin configuración adicional — funciona solo</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+          <span style="font-size: 20px;">📄</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Contratos digitales</div>
+            <div style="font-size: 13px; color: #64748B;">Sube el PDF del contrato y guárdalo vinculado al inmueble y al arrendatario</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+          <span style="font-size: 20px;">🧮</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Cálculo automático de pagos</div>
+            <div style="font-size: 13px; color: #64748B;">Digitas el canon y el porcentaje — el sistema calcula comisión, administración y lo que le queda al propietario</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+          <span style="font-size: 20px;">🔧</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Arreglos del mes</div>
+            <div style="font-size: 13px; color: #64748B;">Si ese mes hubo un arreglo, se descuenta automáticamente del pago al propietario</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+          <span style="font-size: 20px;">🤝</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">Ventas con comisión variable</div>
+            <div style="font-size: 13px; color: #64748B;">Registra la venta, digitas el porcentaje de comisión y el sistema calcula tu ganancia</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+          <span style="font-size: 20px;">📊</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">PDF de liquidación con tu logo</div>
+            <div style="font-size: 13px; color: #64748B;">Un clic genera el documento listo para enviarle al propietario — con tu marca</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: SITIO WEB -->
+  <div class="slide slide-7" style="background: #0F172A;">
+    <div class="slide-title">Tu vitrina digital</div>
+    <h2 class="slide-heading" style="margin-bottom: 32px;">Un sitio web profesional<br>desde el día 1</h2>
+    <div class="web-layout">
+      <div class="web-mock">
+        <div class="web-bar">
+          <div class="web-dot" style="background: #EF4444;"></div>
+          <div class="web-dot" style="background: #F59E0B;"></div>
+          <div class="web-dot" style="background: #22C55E;"></div>
+          <div class="web-url">tuinmobiliaria.com</div>
+        </div>
+        <div class="web-hero">
+          <h2>Encuentra tu próximo hogar</h2>
+          <p>Apartamentos, casas y locales en toda Colombia</p>
+        </div>
+        <div class="web-cards">
+          <div class="prop-card">
+            <div class="prop-img" style="background: #E0F2FE;">🏢</div>
+            <div class="prop-info">
+              <div class="prop-price">$2.800.000/mes</div>
+              <div class="prop-detail">Apto · Chapinero · 2 hab</div>
+            </div>
+          </div>
+          <div class="prop-card">
+            <div class="prop-img" style="background: #F0FDF4;">🏠</div>
+            <div class="prop-info">
+              <div class="prop-price">$650.000.000</div>
+              <div class="prop-detail">Casa · Laureles · 4 hab</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="web-features">
+        <div class="web-feature">
+          <span>🔍</span>
+          <p>Buscador con filtros por tipo, zona, precio y habitaciones</p>
+        </div>
+        <div class="web-feature">
+          <span>📸</span>
+          <p>Galería de fotos, mapa y características de cada inmueble</p>
+        </div>
+        <div class="web-feature">
+          <span>💬</span>
+          <p>Botón de WhatsApp en cada inmueble — conecta directo con Sofía</p>
+        </div>
+        <div class="web-feature">
+          <span>📱</span>
+          <p>Optimizado para celular — donde buscan el 80% de los clientes</p>
+        </div>
+        <div class="web-feature">
+          <span>🔎</span>
+          <p>SEO incluido — aparece en Google cuando busquen inmuebles</p>
+        </div>
+        <div class="web-feature">
+          <span>🎨</span>
+          <p>Tu logo y colores — se ve como tuyo, no como una plantilla</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: FASES -->
+  <div class="slide slide-8">
+    <div class="slide-title">Roadmap del producto</div>
+    <h2 class="slide-heading" style="margin-bottom: 36px;">Dos fases, un negocio completo</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 900px;">
+
+      <div style="background: rgba(148,163,184,0.06); border: 1px solid rgba(148,163,184,0.3); border-radius: 20px; padding: 32px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+          <div style="background: rgba(148,163,184,0.15); border: 1px solid rgba(148,163,184,0.4); color: #CBD5E1; font-size: 12px; font-weight: 600; padding: 4px 14px; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.08em;">🥈 Silver</div>
+        </div>
+        <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 4px; color: #F8FAFC;">Etapa Silver</h3>
+        <div style="font-size: 28px; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;">$3.000.000</div>
+        <div style="font-size: 13px; color: #64748B; margin-bottom: 24px;">+ $200.000 / mes</div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(148,163,184,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">📊</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">CRM + Panel sin código</div>
+              <div style="font-size: 12px; color: #64748B;">Inmuebles, clientes, citas y KPIs</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(148,163,184,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">🤖</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">Sofía — Asistente 24/7</div>
+              <div style="font-size: 12px; color: #64748B;">Atiende clientes y agenda citas por WhatsApp</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(148,163,184,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">📱</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">Redes sociales</div>
+              <div style="font-size: 12px; color: #64748B;">Fanpage, Instagram y estrategia de contenido</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(148,163,184,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">🌐</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">Sitio web propio</div>
+              <div style="font-size: 12px; color: #64748B;">Vitrina digital con fotos, mapa y contacto</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(148,163,184,0.12); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">📄</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">Contratos + pagos automáticos</div>
+              <div style="font-size: 12px; color: #64748B;">Arriendos, ventas, liquidaciones PDF y recordatorios</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: rgba(234,179,8,0.04); border: 1px solid rgba(234,179,8,0.2); border-radius: 20px; padding: 32px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+          <div style="background: rgba(234,179,8,0.15); border: 1px solid rgba(234,179,8,0.4); color: #FCD34D; font-size: 12px; font-weight: 600; padding: 4px 14px; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.08em;">🥇 Gold</div>
+        </div>
+        <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 4px; color: #94A3B8;">Etapa Gold</h3>
+        <div style="font-size: 28px; font-weight: 700; color: #FCD34D; margin-bottom: 4px;">$2.000.000</div>
+        <div style="font-size: 13px; color: #64748B; margin-bottom: 24px;">+ $200.000 / mes</div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(234,179,8,0.08); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">🏠</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #94A3B8; margin-bottom: 2px;">Agente captador de inmuebles</div>
+              <div style="font-size: 12px; color: #475569;">Busca propiedades en portales y te propone cuáles agregar</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(234,179,8,0.08); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">🎬</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #94A3B8; margin-bottom: 2px;">Reels y contenido automático</div>
+              <div style="font-size: 12px; color: #475569;">IA genera guiones y publica en Instagram y TikTok</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(234,179,8,0.08); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">📣</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #94A3B8; margin-bottom: 2px;">Campañas de WhatsApp masivas</div>
+              <div style="font-size: 12px; color: #475569;">Segmenta clientes y envía ofertas personalizadas</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(234,179,8,0.08); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">📈</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #94A3B8; margin-bottom: 2px;">Inteligencia y predicciones</div>
+              <div style="font-size: 12px; color: #475569;">Reportes automáticos y predicción de cierres</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SLIDE 9: CTA -->
+  <div class="slide slide-9">
+    <h1>¿Listo para<br>automatizar tu<br>inmobiliaria?</h1>
+    <p class="sub">Empieza con lo que necesitas hoy. Crece cuando quieras.</p>
+    <div class="cta-cards">
+      <div class="cta-card">
+        <div class="emoji">🚀</div>
+        <h4>Listo en días</h4>
+        <p>No meses. El sistema está construido y probado.</p>
+      </div>
+      <div class="cta-card">
+        <div class="emoji">🔧</div>
+        <h4>Sin mantenimiento técnico</h4>
+        <p>Tú lo operas. Yo lo mantengo.</p>
+      </div>
+      <div class="cta-card">
+        <div class="emoji">📈</div>
+        <h4>Escala contigo</h4>
+        <p>Nuevas funciones cuando las necesites.</p>
+      </div>
+    </div>
+    <p class="tagline">"Tu inmobiliaria, trabajando sola mientras tú cierras negocios."</p>
+  </div>
+
+</div>
+
+<!-- NAVEGACIÓN -->
+<div class="nav">
+  <button onclick="prevSlide()">← Anterior</button>
+  <span class="slide-counter" id="counter">1 / 9</span>
+  <button onclick="nextSlide()">Siguiente →</button>
+</div>
+
+<!-- DOTS -->
+<div class="dots" id="dots"></div>
+
+<script>
+  const totalSlides = 9;
+  let current = 1;
+
+  const dotsContainer = document.getElementById('dots');
+  for (let i = 1; i <= totalSlides; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 1 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    dotsContainer.appendChild(dot);
+  }
+
+  function goTo(n) {
+    document.querySelector('.slide.active').classList.remove('active');
+    document.querySelectorAll('.dot')[current - 1].classList.remove('active');
+    current = n;
+    document.querySelector('.slide-' + current).classList.add('active');
+    document.querySelectorAll('.dot')[current - 1].classList.add('active');
+    document.getElementById('counter').textContent = current + ' / ' + totalSlides;
+  }
+
+  function nextSlide() { if (current < totalSlides) goTo(current + 1); }
+  function prevSlide() { if (current > 1) goTo(current - 1); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextSlide();
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevSlide();
+  });
+</script>
+</body>
+</html>

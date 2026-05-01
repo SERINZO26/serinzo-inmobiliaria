@@ -596,7 +596,7 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
           </div>
           <div className="space-y-1.5">
             <Label>Teléfono</Label>
-            <Input value={form.ownerPhone} onChange={(e) => set('ownerPhone', e.target.value)} placeholder="+57 300 000 0000" />
+            <Input value={form.ownerPhone} onChange={(e) => set('ownerPhone', e.target.value)} placeholder="+57 318 206 3924" />
           </div>
           <div className="space-y-1.5">
             <Label>Email</Label>

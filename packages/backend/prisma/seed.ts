@@ -8,15 +8,15 @@ async function main() {
 
   // ─── USUARIOS ────────────────────────────────────────────────────────────────
 
-  const adminPassword = await bcrypt.hash('Admin2024!', 12);
+  const adminPassword = await bcrypt.hash('Serinzo2024!', 12);
   const agentPassword = await bcrypt.hash('Agente2024!', 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@inmobiliaria.com' },
+    where: { email: 'info@serinzo.com' },
     update: {},
     create: {
-      name: 'María García',
-      email: 'admin@inmobiliaria.com',
+      name: 'Administrador Serinzo',
+      email: 'info@serinzo.com',
       password: adminPassword,
       role: Role.ADMIN,
       status: UserStatus.ACTIVE,
@@ -24,15 +24,15 @@ async function main() {
   });
 
   const agente = await prisma.user.upsert({
-    where: { email: 'carlos@inmobiliaria.com' },
+    where: { email: 'agente@serinzo.com' },
     update: {},
     create: {
-      name: 'Carlos Rodríguez',
-      email: 'carlos@inmobiliaria.com',
+      name: 'Agente Serinzo',
+      email: 'agente@serinzo.com',
       password: agentPassword,
       role: Role.AGENT,
       status: UserStatus.ACTIVE,
-      phone: '3002345678',
+      phone: '3182063924',
     },
   });
 
@@ -373,6 +373,26 @@ async function main() {
   });
 
   console.log(`Cita creada: ${valentina.name} — ${apartamento.city} — ${manana.toLocaleDateString('es-CO')}`);
+
+  // ─── SETTINGS SINGLETON — Serinzo Inmobiliaria ──────────────────────────────
+
+  await prisma.settings.upsert({
+    where:  { id: 'singleton' },
+    update: {},
+    create: {
+      id:             'singleton',
+      companyName:    'Serinzo Inmobiliaria',
+      companyPhone:   '3182063924',
+      companyEmail:   'info@serinzo.com',
+      companyAddress: 'Calle 135 #7-42',
+      companyCity:    'Bogotá',
+      agentName:      'Sofía',
+      agentTone:      'amigable',
+      agentWelcome:   'Hola, soy Sofía, asistente de Serinzo Inmobiliaria. ¿En qué puedo ayudarte hoy?',
+    },
+  });
+
+  console.log('Settings de Serinzo Inmobiliaria creados');
 
   // ─── KPI SNAPSHOT ────────────────────────────────────────────────────────────
 

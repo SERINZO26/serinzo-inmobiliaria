@@ -4,6 +4,11 @@
 
 @layer base {
   :root {
+    /* ── Colores de marca Serinzo Inmobiliaria ── */
+    --color-primary:       #B8973E;
+    --color-primary-dark:  #8B6E2E;
+    --color-primary-light: #D4AF6A;
+
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;

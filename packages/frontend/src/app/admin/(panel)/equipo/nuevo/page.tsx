@@ -157,7 +157,7 @@ export default function EquipoNuevoPage() {
               <Input
                 id="phone"
                 type="tel"
-                placeholder="+57 300 000 0000"
+                placeholder="+57 318 206 3924"
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
               />

@@ -237,7 +237,7 @@ export default function ClienteNuevoPage() {
               <Input
                 id="telefono"
                 type="tel"
-                placeholder="+57 300 000 0000"
+                placeholder="+57 318 206 3924"
                 value={contacto.telefono}
                 onChange={(e) => {
                   setContacto({ ...contacto, telefono: e.target.value });

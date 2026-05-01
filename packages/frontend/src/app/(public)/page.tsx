@@ -81,7 +81,7 @@ function HeroSearch() {
         {/* Botón */}
         <Button
           onClick={buscar}
-          className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2 flex-shrink-0"
+          className="h-12 px-8 bg-[#B8973E] hover:bg-[#8B6E2E] text-white font-semibold gap-2 flex-shrink-0"
         >
           <Search className="h-4 w-4" />
           Buscar
@@ -108,10 +108,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
           <div className="max-w-2xl mx-auto text-center mb-10">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
-              Encuentra tu próximo hogar
+              Sabemos que cada espacio tiene un propósito.
             </h1>
             <p className="text-lg sm:text-xl text-slate-300">
-              Te ayudamos a encontrar el inmueble perfecto para comprar o arrendar
+              Te ayudamos a encontrar el lugar ideal, con un acompañamiento experto en cada paso.
             </p>
           </div>
           <div className="max-w-3xl mx-auto">
@@ -130,7 +130,7 @@ export default function HomePage() {
               { number: '200+', label: 'Clientes satisfechos' },
             ].map((stat) => (
               <div key={stat.label}>
-                <p className="text-5xl font-bold text-blue-600 mb-2">{stat.number}</p>
+                <p className="text-5xl font-bold text-[#B8973E] mb-2">{stat.number}</p>
                 <p className="text-slate-600 font-medium">{stat.label}</p>
               </div>
             ))}
@@ -148,7 +148,7 @@ export default function HomePage() {
             </div>
             <Link
               href="/inmuebles"
-              className="hidden sm:inline-flex text-blue-600 hover:text-blue-700 font-medium text-sm"
+              className="hidden sm:inline-flex text-[#B8973E] hover:text-[#8B6E2E] font-medium text-sm"
             >
               Ver todos →
             </Link>
@@ -181,7 +181,7 @@ export default function HomePage() {
           )}
 
           <div className="text-center mt-10">
-            <Button asChild size="lg" variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+            <Button asChild size="lg" variant="outline" className="border-[#B8973E] text-[#B8973E] hover:bg-[#B8973E]/10">
               <Link href="/inmuebles">Ver todos los inmuebles</Link>
             </Button>
           </div>
@@ -215,9 +215,9 @@ export default function HomePage() {
             ].map(({ Icon, title, desc }) => (
               <div
                 key={title}
-                className="text-center p-6 rounded-2xl bg-slate-50 hover:bg-blue-50 transition-colors"
+                className="text-center p-6 rounded-2xl bg-slate-50 hover:bg-[#B8973E]/5 transition-colors"
               >
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-[#B8973E]/15 text-[#B8973E] rounded-2xl mb-4">
                   <Icon className="h-7 w-7" />
                 </div>
                 <h3 className="font-bold text-slate-800 text-lg mb-2">{title}</h3>

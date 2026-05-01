@@ -365,7 +365,7 @@ export default function ConfiguracionPage() {
                     <Input
                       id="empresa-tel"
                       type="tel"
-                      placeholder="+57 300 000 0000"
+                      placeholder="+57 318 206 3924"
                       value={empresa.companyPhone}
                       onChange={(e) => setEmpresa({ ...empresa, companyPhone: e.target.value })}
                     />
@@ -375,7 +375,7 @@ export default function ConfiguracionPage() {
                     <Input
                       id="empresa-email"
                       type="email"
-                      placeholder="contacto@inmobiliaria.com"
+                      placeholder="info@serinzo.com"
                       value={empresa.companyEmail}
                       onChange={(e) => setEmpresa({ ...empresa, companyEmail: e.target.value })}
                     />
@@ -384,7 +384,7 @@ export default function ConfiguracionPage() {
                     <Label htmlFor="empresa-dir">Dirección</Label>
                     <Input
                       id="empresa-dir"
-                      placeholder="Calle 123 #45-67"
+                      placeholder="Calle 135 #7-42"
                       value={empresa.companyAddress}
                       onChange={(e) => setEmpresa({ ...empresa, companyAddress: e.target.value })}
                     />

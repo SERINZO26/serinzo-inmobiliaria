@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { href: '/contacto', label: 'Contacto' },
 ];
 
-const WA_NUMBER = '57300000000';
+const WA_NUMBER = '573182063924';
 const WA_URL = `https://wa.me/${WA_NUMBER}`;
 
 function Header() {
@@ -29,7 +29,7 @@ function Header() {
               <Building2 className="h-5 w-5" />
             </div>
             <span className="font-bold text-slate-800 text-base sm:text-lg leading-tight">
-              Sistema Inmobiliario
+              Serinzo Inmobiliaria
             </span>
           </Link>
 
@@ -120,7 +120,7 @@ function Footer() {
               <div className="bg-white/10 p-1.5 rounded-lg">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
-              <span className="font-bold text-white">Sistema Inmobiliario</span>
+              <span className="font-bold text-white">Serinzo Inmobiliaria</span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
               Tu aliado de confianza en la compra, venta y arriendo de inmuebles.
@@ -132,13 +132,13 @@ function Footer() {
             <h3 className="font-semibold text-white mb-3">Contacto</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="tel:+57300000000" className="hover:text-white transition-colors">
-                  +57 300 000 0000
+                <a href="tel:+573182063924" className="hover:text-white transition-colors">
+                  +57 318 206 3924
                 </a>
               </li>
               <li>
-                <a href="mailto:info@inmobiliaria.com" className="hover:text-white transition-colors">
-                  info@inmobiliaria.com
+                <a href="mailto:info@serinzo.com" className="hover:text-white transition-colors">
+                  info@serinzo.com
                 </a>
               </li>
             </ul>
@@ -160,7 +160,7 @@ function Footer() {
         </div>
 
         <div className="mt-10 pt-6 border-t border-slate-700 text-center text-xs text-slate-500">
-          © {year} Sistema Inmobiliario. Todos los derechos reservados.
+          © {year} Serinzo Inmobiliaria. Todos los derechos reservados.
         </div>
       </div>
     </footer>

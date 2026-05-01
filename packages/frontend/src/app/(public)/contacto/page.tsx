@@ -19,28 +19,28 @@ import { useToast } from '@/hooks/use-toast';
 const CONTACT_INFO = [
   {
     Icon: Phone,
-    label: '+57 300 000 0000',
-    href: 'tel:+57300000000',
+    label: '+57 318 206 3924',
+    href: 'tel:+573182063924',
     color: 'text-blue-600',
     bg: 'bg-blue-100',
   },
   {
     Icon: MessageCircle,
-    label: 'WhatsApp: +57 300 000 0000',
-    href: 'https://wa.me/57300000000',
+    label: 'WhatsApp: +57 318 206 3924',
+    href: 'https://wa.me/573182063924',
     color: 'text-green-600',
     bg: 'bg-green-100',
   },
   {
     Icon: Mail,
-    label: 'info@inmobiliaria.com',
-    href: 'mailto:info@inmobiliaria.com',
+    label: 'info@serinzo.com',
+    href: 'mailto:info@serinzo.com',
     color: 'text-purple-600',
     bg: 'bg-purple-100',
   },
   {
     Icon: MapPin,
-    label: 'Calle 123 #45-67, Bogotá',
+    label: 'Calle 135 #7-42, Bogotá',
     href: undefined,
     color: 'text-orange-600',
     bg: 'bg-orange-100',
@@ -229,7 +229,7 @@ export default function ContactoPage() {
                     <Input
                       id="cont-tel"
                       type="tel"
-                      placeholder="+57 300 000 0000"
+                      placeholder="+57 318 206 3924"
                       value={form.telefono}
                       onChange={(e) => set('telefono', e.target.value)}
                     />

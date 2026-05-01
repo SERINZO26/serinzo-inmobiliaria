@@ -303,7 +303,7 @@ async function generatePdfResumen(
   const repairAmt   = payment.repairAmount ? Number(payment.repairAmount) : 0;
   const propietario = amount - commission - adminFeeAmt - repairAmt;
 
-  const companyName    = settings?.companyName    ?? 'Mi Inmobiliaria';
+  const companyName    = settings?.companyName    ?? 'Serinzo Inmobiliaria';
   const companyPhone   = settings?.companyPhone   ?? null;
   const companyEmail   = settings?.companyEmail   ?? null;
   const companyAddress = settings?.companyAddress ?? null;
@@ -452,7 +452,7 @@ async function generatePdfResumen(
   doc.setTextColor(148, 163, 184);
   const hoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
   doc.text(`Generado el ${hoy}`, 20, 275);
-  doc.text('Sistema Inmobiliario con IA', 175, 275, { align: 'right' });
+  doc.text('Serinzo Inmobiliaria', 175, 275, { align: 'right' });
 
   doc.save(`liquidacion-periodo-${payment.periodNumber}.pdf`);
 }

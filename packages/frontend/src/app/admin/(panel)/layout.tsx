@@ -69,7 +69,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           <div className="bg-white/10 p-1.5 rounded-lg">
             <Building2 className="h-5 w-5" />
           </div>
-          <span className="font-semibold text-sm leading-tight">Sistema<br />Inmobiliario</span>
+          <span className="font-semibold text-sm leading-tight">Serinzo<br />Inmobiliaria</span>
         </div>
         {onClose && (
           <button onClick={onClose} className="text-slate-400 hover:text-white lg:hidden">
@@ -96,8 +96,8 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   active
-                    ? 'bg-white/15 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-white/8',
+                    ? 'bg-[#B8973E]/20 text-[#D4AF6A] border-l-2 border-[#B8973E]'
+                    : 'text-slate-400 hover:text-white hover:bg-white/8 border-l-2 border-transparent',
                 )}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
@@ -176,7 +176,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           </button>
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-slate-700" />
-            <span className="font-semibold text-slate-800 text-sm">Sistema Inmobiliario</span>
+            <span className="font-semibold text-slate-800 text-sm">Serinzo Inmobiliaria</span>
           </div>
         </header>
 
