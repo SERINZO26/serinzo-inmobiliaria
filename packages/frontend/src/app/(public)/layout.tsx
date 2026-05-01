@@ -21,60 +21,58 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex-shrink-0">
-            <Image
-              src="/logo-serinzo.png"
-              alt="Serinzo Inmobiliaria"
-              width={130}
-              height={50}
-              className="object-contain w-28 md:w-36"
-              priority
-            />
-          </Link>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center flex-shrink-0">
+          <Image
+            src="/logo-serinzo.png"
+            alt="Serinzo Inmobiliaria"
+            width={100}
+            height={40}
+            className="h-10 w-auto object-contain"
+            priority
+          />
+        </Link>
 
-          {/* Nav desktop */}
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                  pathname === link.href
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* WhatsApp button + hamburguesa */}
-          <div className="flex items-center gap-3">
-            <a
-              href={WA_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+        {/* Nav desktop */}
+        <nav className="hidden md:flex items-center gap-1">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                pathname === link.href
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              )}
             >
-              <MessageCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">WhatsApp</span>
-            </a>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-            {/* Hamburguesa móvil */}
-            <button
-              className="md:hidden p-2 text-slate-600 hover:text-slate-900"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Menú"
-            >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+        {/* WhatsApp button + hamburguesa */}
+        <div className="flex items-center gap-3">
+          <a
+            href={WA_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">WhatsApp</span>
+          </a>
+
+          {/* Hamburguesa móvil */}
+          <button
+            className="md:hidden p-2 text-slate-600 hover:text-slate-900"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Menú"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
 
@@ -119,13 +117,14 @@ function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Marca */}
           <div>
-            <div className="mb-3">
+            {/* Logo con fondo blanco redondeado para que se vea sobre el footer oscuro */}
+            <div className="bg-white rounded-lg p-2 inline-block mb-3">
               <Image
                 src="/logo-serinzo.png"
                 alt="Serinzo Inmobiliaria"
-                width={110}
-                height={42}
-                className="object-contain brightness-0 invert"
+                width={100}
+                height={40}
+                className="h-10 w-auto object-contain"
               />
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
