@@ -45,17 +45,18 @@ const STATUS_OPTIONS = [
   { value: 'NO_ASISTIO', label: 'No asistió' },
 ];
 
-// ─── Color de borde para cita en semana ──────────────────────────────────────
+// ─── Color de borde + fondo para cita en vista semana ────────────────────────
+// Coincide exactamente con los colores de los badges de la lista
 
 function appointmentBorderColor(status: string): string {
   const map: Record<string, string> = {
-    PENDIENTE:  'border-orange-400 bg-orange-50',
-    CONFIRMADA: 'border-green-500 bg-green-50',
-    REAGENDADA: 'border-blue-400 bg-blue-50',
-    REALIZADA:  'border-emerald-400 bg-emerald-50',
-    NO_ASISTIO: 'border-gray-300 bg-gray-50',
+    PENDIENTE:  'border-yellow-400 bg-yellow-100 text-yellow-800',
+    CONFIRMADA: 'border-green-400  bg-green-100  text-green-800',
+    REAGENDADA: 'border-blue-400   bg-blue-100   text-blue-800',
+    REALIZADA:  'border-emerald-400 bg-emerald-100 text-emerald-800',
+    NO_ASISTIO: 'border-gray-400   bg-gray-100   text-gray-600',
   };
-  return map[status] ?? 'border-gray-300';
+  return map[status] ?? 'border-gray-300 bg-gray-50 text-gray-600';
 }
 
 // ─── Modal de detalle de cita ─────────────────────────────────────────────────
@@ -489,7 +490,7 @@ function CreateModal({ open, onClose, defaultAgentId }: CreateModalProps) {
 
 // ─── Vista de semana ──────────────────────────────────────────────────────────
 
-const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 interface WeekViewProps {
   weekStart: Date;
@@ -498,18 +499,20 @@ interface WeekViewProps {
 }
 
 function WeekView({ weekStart, appointments, onSelect }: WeekViewProps) {
-  const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i + 1)); // Mon-Fri
+  // 7 días desde el lunes de la semana (weekStart ya es lunes por startOfWeek weekStartsOn:1)
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div className="grid grid-cols-5 divide-x divide-slate-100">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+      <div className="grid grid-cols-7 divide-x divide-slate-100 min-w-[700px]">
         {days.map((day, i) => {
           const dayApts = appointments.filter((a) => isSameDay(new Date(a.scheduledAt), day));
+          const isWeekend = i >= 5;
           return (
-            <div key={i} className="min-h-[300px]">
+            <div key={i} className={cn('min-h-[300px]', isWeekend && 'bg-slate-50/60')}>
               {/* Encabezado del día */}
-              <div className="px-3 py-2.5 border-b border-slate-100 bg-slate-50">
-                <p className="text-xs font-semibold text-slate-500">{WEEKDAYS[i]}</p>
+              <div className={cn('px-2 py-2.5 border-b border-slate-100', isWeekend ? 'bg-slate-100' : 'bg-slate-50')}>
+                <p className={cn('text-xs font-semibold', isWeekend ? 'text-slate-400' : 'text-slate-500')}>{WEEKDAYS[i]}</p>
                 <p className="text-sm font-bold text-slate-800">{format(day, 'd', { locale: es })}</p>
               </div>
 
@@ -527,10 +530,10 @@ function WeekView({ weekStart, appointments, onSelect }: WeekViewProps) {
                         appointmentBorderColor(apt.status),
                       )}
                     >
-                      <p className="text-xs font-semibold text-slate-600">
+                      <p className="text-xs font-semibold">
                         {formatTime(apt.scheduledAt)}
                       </p>
-                      <p className="text-xs text-slate-700 truncate">{apt.client?.name ?? '—'}</p>
+                      <p className="text-xs truncate">{apt.client?.name ?? '—'}</p>
                       {apt.isSpecialCase && (
                         <AlertTriangle className="h-3 w-3 text-amber-400 mt-0.5" />
                       )}
@@ -603,8 +606,8 @@ export default function CitasPage() {
     setShowDetail(true);
   }
 
-  // Etiqueta del rango de la semana
-  const weekLabel = `${format(addDays(weekStart, 1), 'd', { locale: es })}–${format(weekEnd, 'd MMM', { locale: es })}`;
+  // Etiqueta del rango de la semana (lunes → domingo)
+  const weekLabel = `${format(weekStart, 'd', { locale: es })}–${format(weekEnd, 'd MMM yyyy', { locale: es })}`;
 
   return (
     <div className="space-y-5">
