@@ -21,16 +21,16 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm h-20">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm h-24">
       <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center flex-shrink-0">
           <Image
             src="/logo-serinzo.png"
             alt="Serinzo Inmobiliaria"
-            width={160}
-            height={64}
-            className="h-14 w-auto object-contain"
+            width={200}
+            height={80}
+            className="h-16 w-auto object-contain"
             priority
           />
         </Link>
@@ -176,7 +176,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-1 pt-20">{children}</main>
+      <main className="flex-1 pt-24">{children}</main>
       <Footer />
     </div>
   );
