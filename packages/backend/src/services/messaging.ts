@@ -99,14 +99,27 @@ export async function sendWhatsAppMedia(
   const from        = getWhatsAppFrom();
   const toFormatted = formatWhatsAppNumber(to);
 
-  const message = await client.messages.create({
-    from,
-    to: toFormatted,
-    body,
-    mediaUrl: [mediaUrl],
-  });
-
-  console.log(`[messaging] WhatsApp+media enviado a ${toFormatted} | SID: ${message.sid} | ${new Date().toISOString()}`);
+  try {
+    const message = await client.messages.create({
+      from,
+      to: toFormatted,
+      body,
+      mediaUrl: [mediaUrl],
+    });
+    console.log(`[messaging] WhatsApp+media enviado a ${toFormatted} | SID: ${message.sid} | ${new Date().toISOString()}`);
+  } catch (mediaErr) {
+    // Si Twilio rechaza la URL del media, enviar solo el texto con el enlace
+    console.error(`[messaging] Twilio rechazó mediaUrl "${mediaUrl}" — enviando enlace en texto:`, mediaErr);
+    const fallbackBody = body
+      ? `${body}\n\n🔗 Ver foto: ${mediaUrl}`
+      : `🔗 Ver foto: ${mediaUrl}`;
+    const fallback = await client.messages.create({
+      from,
+      to: toFormatted,
+      body: fallbackBody,
+    });
+    console.log(`[messaging] Fallback texto enviado a ${toFormatted} | SID: ${fallback.sid}`);
+  }
 }
 
 // ─── sendWhatsAppTemplate ─────────────────────────────────────────────────────

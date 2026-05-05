@@ -102,13 +102,36 @@ export const handleSendPropertyMedia: ToolHandler = async (input) => {
   });
 
   if (!property) return { error: 'Inmueble no encontrado' };
-  if (!property.photos.length) return { sent: 0, message: 'Este inmueble no tiene fotos disponibles aún' };
 
-  // Enviar máximo 3 fotos para no saturar
-  const photosToSend = property.photos.slice(0, 3);
+  // Validar que existan fotos
+  const allPhotos = property.photos ?? [];
+  if (allPhotos.length === 0) {
+    return { success: false, sent: 0, message: 'Este inmueble aún no tiene fotos cargadas en el sistema.' };
+  }
+
+  // Filtrar URLs válidas: deben ser https:// y no placeholders/ejemplos
+  const validPhotos = allPhotos
+    .filter((url) =>
+      url &&
+      url.startsWith('https://') &&
+      !url.includes('placeholder') &&
+      !url.includes('example') &&
+      !url.includes('unsplash') &&
+      !url.includes('picsum') &&
+      !url.includes('loremflickr'),
+    )
+    .slice(0, 3); // máximo 3 fotos para no saturar
+
+  if (validPhotos.length === 0) {
+    return {
+      success: false,
+      sent: 0,
+      message: 'Las fotos de este inmueble están siendo procesadas y no están disponibles aún.',
+    };
+  }
+
   let sent = 0;
-
-  for (const photoUrl of photosToSend) {
+  for (const photoUrl of validPhotos) {
     try {
       await sendWhatsAppMedia(
         client_phone,
@@ -116,14 +139,18 @@ export const handleSendPropertyMedia: ToolHandler = async (input) => {
         photoUrl,
       );
       sent++;
-      // Pequeña pausa entre mensajes para no saturar Twilio
-      await new Promise(r => setTimeout(r, 500));
+      // Pausa entre mensajes para no saturar Twilio
+      await new Promise(r => setTimeout(r, 600));
     } catch (err) {
       console.error(`[handlers] Error enviando foto ${photoUrl}:`, err);
     }
   }
 
-  return { sent, total: property.photos.length, message: `Se enviaron ${sent} foto(s)` };
+  if (sent === 0) {
+    return { success: false, sent: 0, message: 'No se pudieron enviar las fotos. Intenta de nuevo en un momento.' };
+  }
+
+  return { success: true, sent, total: allPhotos.length, message: `Se enviaron ${sent} foto(s) correctamente.` };
 };
 
 // ─── check_availability ───────────────────────────────────────────────────────
