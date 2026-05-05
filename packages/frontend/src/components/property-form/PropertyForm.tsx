@@ -294,7 +294,11 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Validaciones en el frontend (duplican las del backend para dar feedback inmediato)
     if (!form.title.trim()) return setError('El título del inmueble es obligatorio.');
+    if (!form.description.trim() || form.description.trim().length < 10)
+      return setError('La descripción debe tener al menos 10 caracteres.');
     if (!form.price || parseFloat(form.price) <= 0) return setError('El precio debe ser mayor a 0.');
     if (!form.address.trim()) return setError('La dirección es obligatoria.');
     if (!form.city.trim()) return setError('La ciudad es obligatoria.');
@@ -324,8 +328,11 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
         await propertiesApi.update(property.id, formToPayload(form));
         router.push('/admin/inmuebles');
       }
-    } catch {
-      setError('No se pudo guardar el inmueble. Intenta de nuevo.');
+    } catch (err: unknown) {
+      // Mostrar el mensaje de error real del backend si está disponible
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiMsg = (err as any)?.response?.data?.error as string | undefined;
+      setError(apiMsg ?? 'No se pudo guardar el inmueble. Verifica que todos los campos obligatorios estén completos.');
     } finally {
       setSaving(false);
     }
