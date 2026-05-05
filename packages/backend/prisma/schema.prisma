@@ -383,6 +383,7 @@ model Availability {
 model Conversation {
   id                   String               @id @default(cuid())
   clientId             String?
+  contactPhone         String?              // teléfono del contacto, incluso antes de identificar al cliente
   channel              Channel
   startedAt            DateTime             @default(now())
   endedAt              DateTime?
@@ -406,6 +407,7 @@ model Conversation {
   @@index([outcome])
   @@index([clientId])
   @@index([createdAt])
+  @@index([contactPhone])
   @@map("conversations")
 }
 

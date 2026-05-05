@@ -329,59 +329,74 @@ export const handleSaveClient: ToolHandler = async (input) => {
     additional_requirements?: string;
   };
 
-  // Normalizar teléfono para búsqueda
-  const normalizedPhone = phone.replace(/[^\d+]/g, '');
+  // Normalizar teléfono — acepta cualquier formato, sin validación estricta
+  // Un agente humano puede corregirlo desde el panel si es necesario
+  const normalizedPhone = phone.replace(/[^\d+]/g, '') || phone;
 
-  // Buscar si ya existe por teléfono
-  const existing = await prisma.client.findFirst({
-    where: { phone: { contains: normalizedPhone.slice(-10) } },
-    select: { id: true },
-  });
+  try {
+    // Buscar si ya existe por teléfono (últimos 10 dígitos para tolerancia de formato)
+    const searchDigits = normalizedPhone.replace(/\D/g, '').slice(-10);
+    const existing = searchDigits.length >= 7
+      ? await prisma.client.findFirst({
+          where: { phone: { contains: searchDigits } },
+          select: { id: true },
+        })
+      : null;
 
-  if (existing) {
-    // Actualizar datos existentes
-    const updated = await prisma.client.update({
-      where: { id: existing.id },
+    if (existing) {
+      // Actualizar datos existentes
+      const updated = await prisma.client.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          ...(email               ? { email }                                          : {}),
+          ...(budget_min          ? { budgetMin: budget_min }                          : {}),
+          ...(budget_max          ? { budgetMax: budget_max }                          : {}),
+          ...(preferred_operation ? { preferredOperation: preferred_operation as any } : {}),
+          ...(preferred_zones     ? { preferredZones: preferred_zones }                : {}),
+          ...(preferred_type      ? { preferredType: preferred_type }                  : {}),
+          ...(min_bedrooms        ? { minBedrooms: min_bedrooms }                      : {}),
+          ...(additional_requirements ? { additionalRequirements: additional_requirements } : {}),
+          lastContactAt: new Date(),
+        },
+        select: { id: true, name: true },
+      });
+      return { success: true, client_id: updated.id, created: false, name: updated.name };
+    }
+
+    // Crear nuevo cliente — guardamos el teléfono tal como lo dio el cliente
+    const created = await prisma.client.create({
       data: {
         name,
-        ...(email            ? { email }                          : {}),
-        ...(budget_min       ? { budgetMin: budget_min }          : {}),
-        ...(budget_max       ? { budgetMax: budget_max }          : {}),
-        ...(preferred_operation ? { preferredOperation: preferred_operation as any } : {}),
-        ...(preferred_zones  ? { preferredZones: preferred_zones } : {}),
-        ...(preferred_type   ? { preferredType: preferred_type }  : {}),
-        ...(min_bedrooms     ? { minBedrooms: min_bedrooms }      : {}),
-        ...(additional_requirements ? { additionalRequirements: additional_requirements } : {}),
-        lastContactAt: new Date(),
+        phone:              normalizedPhone,
+        email:              email ?? null,
+        source:             'WHATSAPP',
+        status:             'NUEVO',
+        budgetMin:          budget_min ?? null,
+        budgetMax:          budget_max ?? null,
+        budgetCurrency:     'COP',
+        preferredOperation: (preferred_operation as any) ?? null,
+        preferredZones:     preferred_zones ?? [],
+        preferredType:      preferred_type ?? [],
+        minBedrooms:        min_bedrooms ?? null,
+        additionalRequirements: additional_requirements ?? null,
+        interestLevel:      3,
+        lastContactAt:      new Date(),
       },
       select: { id: true, name: true },
     });
-    return { client_id: updated.id, created: false, name: updated.name };
+
+    return { success: true, client_id: created.id, created: true, name: created.name };
+
+  } catch (err) {
+    // El fallo al guardar el cliente NO debe interrumpir la conversación
+    console.error('[handlers] Error guardando cliente:', err);
+    return {
+      success: false,
+      client_id: null,
+      message: 'El registro del cliente no se completó, pero puedes continuar la conversación. Un agente lo registrará manualmente.',
+    };
   }
-
-  // Crear nuevo cliente
-  const created = await prisma.client.create({
-    data: {
-      name,
-      phone: normalizedPhone,
-      email:               email ?? null,
-      source:              'WHATSAPP',
-      status:              'NUEVO',
-      budgetMin:           budget_min ?? null,
-      budgetMax:           budget_max ?? null,
-      budgetCurrency:      'COP',
-      preferredOperation:  (preferred_operation as any) ?? null,
-      preferredZones:      preferred_zones ?? [],
-      preferredType:       preferred_type ?? [],
-      minBedrooms:         min_bedrooms ?? null,
-      additionalRequirements: additional_requirements ?? null,
-      interestLevel:       3, // nivel inicial por defecto
-      lastContactAt:       new Date(),
-    },
-    select: { id: true, name: true },
-  });
-
-  return { client_id: created.id, created: true, name: created.name };
 };
 
 // ─── update_client_interest ───────────────────────────────────────────────────

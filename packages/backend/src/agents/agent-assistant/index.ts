@@ -56,7 +56,7 @@ export class AssistantAgent extends BaseAgent {
    *
    * Orden de prioridad:
    * 1. Sesión en memoria (activa) → devuelve directamente
-   * 2. Conversación reciente en BD (últimas 24h) → restaura con historial
+   * 2. Conversación activa en BD (últimas 24h, endedAt null, contactPhone = phone) → restaura
    * 3. No existe → devuelve null (processMessage creará sesión nueva)
    */
   private async getOrRestoreSession(phone: string): Promise<ConversationSession | null> {
@@ -67,17 +67,18 @@ export class AssistantAgent extends BaseAgent {
       return existing;
     }
 
-    // 2. Buscar conversación reciente en BD (últimas 24 horas)
+    // 2. Buscar conversación activa en BD (por contactPhone — funciona incluso sin cliente guardado)
     try {
       const since = new Date(Date.now() - this.SESSION_TTL_MS);
       const recentConv = await prisma.conversation.findFirst({
         where: {
-          channel:   'WHATSAPP',
-          createdAt: { gte: since },
-          client: { phone },
+          contactPhone: phone,
+          channel:      'WHATSAPP',
+          createdAt:    { gte: since },
+          endedAt:      null,           // solo conversaciones abiertas
         },
         include: {
-          turns: { orderBy: { timestamp: 'asc' }, take: 30 },
+          turns:  { orderBy: { timestamp: 'asc' }, take: 30 },
           client: { select: { id: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -98,14 +99,14 @@ export class AssistantAgent extends BaseAgent {
           lastActivity:   new Date(),
         };
         this.sessions.set(phone, restored);
-        console.log(`[agent-assistant] Sesión restaurada desde BD: ${phone} (${messages.length} turns, conv ${recentConv.id})`);
+        console.log(`[agent-assistant] Sesión restaurada: ${phone} (${messages.length} turns, conv ${recentConv.id})`);
         return restored;
       }
     } catch (err) {
-      console.error('[agent-assistant] Error buscando conversación previa en BD:', err);
+      console.error('[agent-assistant] Error restaurando sesión desde BD:', err);
     }
 
-    // 3. Sin conversación reciente → sesión nueva
+    // 3. Sin conversación activa reciente → sesión nueva
     return null;
   }
 
@@ -145,9 +146,10 @@ export class AssistantAgent extends BaseAgent {
     try {
       const conv = await prisma.conversation.create({
         data: {
-          channel:   'WHATSAPP',
-          clientId:  session.clientId ?? null,
-          startedAt: session.startedAt,
+          channel:      'WHATSAPP',
+          clientId:     session.clientId ?? null,
+          contactPhone: session.phone,   // clave para restaurar sin cliente guardado
+          startedAt:    session.startedAt,
         },
         select: { id: true },
       });
