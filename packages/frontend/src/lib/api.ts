@@ -438,7 +438,7 @@ export const availabilityApi = {
 // ─── Staff ───────────────────────────────────────────────────────────────────
 
 export const staffApi = {
-  getAll: (params?: { role?: UserRole; status?: string }) =>
+  getAll: (params?: { role?: UserRole; status?: string; includeInactive?: boolean }) =>
     api.get<ApiResponse<User[]>>('/api/v1/staff', { params }),
 
   create: (data: {

@@ -1,17 +1,25 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, Shield, ShieldOff } from 'lucide-react';
-import { staffApi, type User, type UserRole } from '@/lib/api';
+import { UserPlus, Shield, ShieldOff, Clock } from 'lucide-react';
+import {
+  staffApi,
+  availabilityApi,
+  type User,
+  type UserRole,
+  type Availability,
+} from '@/lib/api';
 import { initials, formatRelative } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -38,6 +46,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
 
 const ROL_LABEL: Record<UserRole, string> = {
   ADMIN: 'Administrador',
@@ -51,29 +75,95 @@ const ROL_COLOR: Record<UserRole, string> = {
   ASSISTANT: 'bg-gray-100 text-gray-700',
 };
 
+const DAYS = [
+  { value: 1, label: 'Lunes' },
+  { value: 2, label: 'Martes' },
+  { value: 3, label: 'Miércoles' },
+  { value: 4, label: 'Jueves' },
+  { value: 5, label: 'Viernes' },
+  { value: 6, label: 'Sábado' },
+  { value: 0, label: 'Domingo' },
+];
+
+// ─── Tipos locales ─────────────────────────────────────────────────────────────
+
+type DaySlot = { enabled: boolean; startTime: string; endTime: string };
+type AvailMap = Record<number, DaySlot>;
+
+const defaultAvailMap = (): AvailMap =>
+  Object.fromEntries(
+    DAYS.map((d) => [d.value, { enabled: false, startTime: '08:00', endTime: '18:00' }]),
+  ) as AvailMap;
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
 export default function EquipoPage() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const router = useRouter();
-  const [confirmUser, setConfirmUser] = useState<User | null>(null);
 
   const isAdmin = session?.user?.role === 'ADMIN';
 
+  // ── Estado modales ────────────────────────────────────────────────────────
+  const [confirmUser, setConfirmUser] = useState<User | null>(null);
+
+  // Modal edición
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('AGENT');
+
+  // Modal disponibilidad
+  const [availUser, setAvailUser] = useState<User | null>(null);
+  const [availMap, setAvailMap] = useState<AvailMap>(defaultAvailMap());
+
+  // ── Queries ───────────────────────────────────────────────────────────────
+
+  // Lista de usuarios — incluye inactivos para que el admin pueda gestionar todos
   const { data, isLoading } = useQuery({
-    queryKey: ['staff'],
-    queryFn: () => staffApi.getAll(),
+    queryKey: ['staff', 'all'],
+    queryFn: () => staffApi.getAll({ includeInactive: true }),
     enabled: isAdmin,
   });
+
+  // Disponibilidad del usuario seleccionado para el modal
+  const { data: availData, isLoading: availLoading } = useQuery({
+    queryKey: ['availability', availUser?.id],
+    queryFn: () => availabilityApi.getByUser(availUser!.id),
+    enabled: !!availUser,
+  });
+
+  // ── Effects ───────────────────────────────────────────────────────────────
+
+  // Reiniciar el mapa cuando se cambia de usuario en el modal de disponibilidad
+  useEffect(() => {
+    if (!availUser) return;
+    setAvailMap(defaultAvailMap());
+  }, [availUser]);
+
+  // Cargar los registros existentes en el mapa local cuando llegan del servidor
+  useEffect(() => {
+    if (!availData) return;
+    const records: Availability[] = (availData.data as { data?: Availability[] })?.data ?? [];
+    const next = defaultAvailMap();
+    for (const r of records) {
+      if (!r.isBlocked) {
+        next[r.dayOfWeek] = { enabled: true, startTime: r.startTime, endTime: r.endTime };
+      }
+    }
+    setAvailMap(next);
+  }, [availData]);
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => staffApi.toggleStatus(id),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      const u = res.data.data;
+      const u = (res.data as { data?: User })?.data;
       toast({
-        title: u.status === 'ACTIVE' ? 'Usuario activado' : 'Usuario desactivado',
-        description: `${u.name} ahora está ${u.status === 'ACTIVE' ? 'activo' : 'inactivo'}.`,
+        title: u?.status === 'ACTIVE' ? 'Usuario activado' : 'Usuario desactivado',
+        description: `${u?.name} ahora está ${u?.status === 'ACTIVE' ? 'activo' : 'inactivo'}.`,
       });
       setConfirmUser(null);
     },
@@ -87,6 +177,103 @@ export default function EquipoPage() {
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({
+      id,
+      name,
+      phone,
+      role,
+    }: {
+      id: string;
+      name: string;
+      phone: string | null;
+      role: UserRole;
+    }) => staffApi.update(id, { name, phone, role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast({ title: 'Usuario actualizado correctamente' });
+      setEditUser(null);
+    },
+    onError: (err: { response?: { data?: { error?: string } } }) => {
+      toast({
+        title: 'Error al guardar',
+        description: err.response?.data?.error ?? 'No se pudo actualizar el usuario.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const saveAvailMutation = useMutation({
+    mutationFn: async ({ userId, map }: { userId: string; map: AvailMap }) => {
+      // 1. Obtener registros actuales
+      const res = await availabilityApi.getByUser(userId);
+      const existing: Availability[] = (res.data as { data?: Availability[] })?.data ?? [];
+      // 2. Eliminar todos los registros actuales
+      await Promise.all(existing.map((r) => availabilityApi.remove(r.id)));
+      // 3. Crear los nuevos registros para los días habilitados
+      const creates = DAYS.filter((d) => map[d.value]?.enabled).map((d) =>
+        availabilityApi.create({
+          userId,
+          dayOfWeek: d.value,
+          startTime: map[d.value].startTime,
+          endTime: map[d.value].endTime,
+          isBlocked: false,
+          validFrom: null,
+          validUntil: null,
+          blockReason: null,
+        }),
+      );
+      await Promise.all(creates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability'] });
+      toast({ title: 'Disponibilidad guardada' });
+      setAvailUser(null);
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar la disponibilidad.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const openEdit = (user: User) => {
+    setEditUser(user);
+    setEditName(user.name);
+    setEditPhone(user.phone ?? '');
+    setEditRole(user.role as UserRole);
+  };
+
+  const handleEditSave = () => {
+    if (!editUser) return;
+    editMutation.mutate({
+      id: editUser.id,
+      name: editName.trim(),
+      phone: editPhone.trim() || null,
+      role: editRole,
+    });
+  };
+
+  const toggleDay = (day: number, enabled: boolean) => {
+    setAvailMap((prev) => ({
+      ...prev,
+      [day]: { ...prev[day], enabled },
+    }));
+  };
+
+  const updateTime = (day: number, field: 'startTime' | 'endTime', value: string) => {
+    setAvailMap((prev) => ({
+      ...prev,
+      [day]: { ...prev[day], [field]: value },
+    }));
+  };
+
+  // ── Render guard ──────────────────────────────────────────────────────────
+
   if (!isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -99,7 +286,9 @@ export default function EquipoPage() {
     );
   }
 
-  const users: User[] = data?.data?.data ?? [];
+  const users: User[] = (data?.data as { data?: User[] })?.data ?? [];
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -150,7 +339,10 @@ export default function EquipoPage() {
               </TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id} className="hover:bg-slate-50">
+                <TableRow
+                  key={user.id}
+                  className={`hover:bg-slate-50 ${user.status === 'INACTIVE' ? 'opacity-60' : ''}`}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
@@ -199,11 +391,15 @@ export default function EquipoPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => router.push(`/admin/equipo/${user.id}/editar`)}
-                        >
+                        <DropdownMenuItem onClick={() => openEdit(user)}>
                           Editar datos
                         </DropdownMenuItem>
+                        {user.role === 'AGENT' && (
+                          <DropdownMenuItem onClick={() => setAvailUser(user)}>
+                            <Clock className="h-4 w-4 mr-2" />
+                            Disponibilidad
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => setConfirmUser(user)}
@@ -234,7 +430,7 @@ export default function EquipoPage() {
         </Table>
       </div>
 
-      {/* Dialog de confirmación */}
+      {/* ── Modal: Confirmar activar/desactivar ────────────────────────────── */}
       <AlertDialog open={!!confirmUser} onOpenChange={() => setConfirmUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -260,12 +456,152 @@ export default function EquipoPage() {
               {toggleMutation.isPending
                 ? 'Guardando...'
                 : confirmUser?.status === 'ACTIVE'
-                ? 'Sí, desactivar'
-                : 'Sí, activar'}
+                  ? 'Sí, desactivar'
+                  : 'Sí, activar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Modal: Editar usuario ──────────────────────────────────────────── */}
+      <Dialog open={!!editUser} onOpenChange={(open) => !open && setEditUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar usuario</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Nombre completo</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Juan Pérez"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-phone">Teléfono</Label>
+              <Input
+                id="edit-phone"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder="300 123 4567"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-role">Rol</Label>
+              <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
+                <SelectTrigger id="edit-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADMIN">Administrador</SelectItem>
+                  <SelectItem value="AGENT">Agente</SelectItem>
+                  <SelectItem value="ASSISTANT">Asistente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditUser(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEditSave}
+              disabled={editMutation.isPending || !editName.trim()}
+            >
+              {editMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Disponibilidad del agente ──────────────────────────────── */}
+      <Dialog open={!!availUser} onOpenChange={(open) => !open && setAvailUser(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Disponibilidad — {availUser?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {availLoading ? (
+            <div className="space-y-3 py-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-slate-500 mb-4">
+                Activa los días en que el agente está disponible para visitas y define el horario de cada día.
+              </p>
+              {DAYS.map((day) => {
+                const slot = availMap[day.value];
+                return (
+                  <div key={day.value} className="flex items-center gap-3">
+                    {/* Toggle día */}
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <Switch
+                        checked={slot?.enabled ?? false}
+                        onCheckedChange={(v) => toggleDay(day.value, v)}
+                        id={`day-${day.value}`}
+                      />
+                      <Label
+                        htmlFor={`day-${day.value}`}
+                        className={`text-sm font-medium cursor-pointer ${
+                          slot?.enabled ? 'text-slate-900' : 'text-slate-400'
+                        }`}
+                      >
+                        {day.label}
+                      </Label>
+                    </div>
+
+                    {/* Horario */}
+                    <div
+                      className={`flex items-center gap-2 flex-1 transition-opacity ${
+                        slot?.enabled ? 'opacity-100' : 'opacity-30 pointer-events-none'
+                      }`}
+                    >
+                      <Input
+                        type="time"
+                        value={slot?.startTime ?? '08:00'}
+                        onChange={(e) => updateTime(day.value, 'startTime', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                      <span className="text-slate-400 text-sm shrink-0">a</span>
+                      <Input
+                        type="time"
+                        value={slot?.endTime ?? '18:00'}
+                        onChange={(e) => updateTime(day.value, 'endTime', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAvailUser(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                availUser && saveAvailMutation.mutate({ userId: availUser.id, map: availMap })
+              }
+              disabled={saveAvailMutation.isPending}
+            >
+              {saveAvailMutation.isPending ? 'Guardando...' : 'Guardar disponibilidad'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

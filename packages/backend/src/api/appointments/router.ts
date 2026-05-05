@@ -37,12 +37,29 @@ async function notifyNewAppointment(
 export const appointmentsRouter = Router();
 
 // Verifica si el agente tiene disponibilidad en el horario solicitado (reglas 4 y 5)
+// Si el agente NO tiene ninguna franja configurada, se permite agendar sin restricciones de horario.
 const checkAgentAvailability = async (
   agentId: string,
   scheduledAt: Date
 ): Promise<{ available: boolean; reason?: string }> => {
   const dayOfWeek = scheduledAt.getDay();
   const timeStr = scheduledAt.toTimeString().substring(0, 5); // "HH:MM"
+
+  // Si el agente no tiene disponibilidad configurada en absoluto, se permite
+  // agendar sin restricciones de horario — solo se verifica que no haya conflicto.
+  const totalSlots = await prisma.availability.count({ where: { userId: agentId } });
+
+  if (totalSlots === 0) {
+    const conflicto = await prisma.appointment.findFirst({
+      where: {
+        agentId,
+        scheduledAt,
+        status: { in: [AppointmentStatus.PENDIENTE, AppointmentStatus.CONFIRMADA] },
+      },
+    });
+    if (conflicto) return { available: false, reason: 'El agente ya tiene una cita en ese horario' };
+    return { available: true };
+  }
 
   const slot = await prisma.availability.findFirst({
     where: {

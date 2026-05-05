@@ -108,6 +108,20 @@ staffRouter.post(
       select: SAFE_SELECT,
     });
 
+    // Los agentes reciben disponibilidad L-V 08:00-18:00 por defecto al crearse,
+    // para que el sistema les permita recibir citas desde el primer día.
+    if (role === Role.AGENT) {
+      await prisma.availability.createMany({
+        data: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+          userId: user.id,
+          dayOfWeek,
+          startTime: '08:00',
+          endTime: '18:00',
+          isBlocked: false,
+        })),
+      });
+    }
+
     return success(res, user);
   })
 );
