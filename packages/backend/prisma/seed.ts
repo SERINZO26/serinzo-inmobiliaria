@@ -347,32 +347,93 @@ async function main() {
 
   console.log('Disponibilidad de Carlos creada (lunes a viernes 08:00-18:00)');
 
-  // ─── CITA ────────────────────────────────────────────────────────────────────
+  // ─── CITAS — varios estados para que la vista semana los muestre todos ────────
+  // Se crean en días distintos de la semana actual para facilitar pruebas visuales.
 
-  const manana = new Date();
-  manana.setDate(manana.getDate() + 1);
-  manana.setHours(10, 0, 0, 0);
+  function diasDesdeHoy(n: number, hora = 10): Date {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    d.setHours(hora, 0, 0, 0);
+    return d;
+  }
 
-  const cita = await prisma.appointment.upsert({
-    where: { id: 'seed-appointment-valentina' },
+  // CONFIRMADA — mañana 10am
+  await prisma.appointment.upsert({
+    where: { id: 'seed-appointment-confirmada' },
     update: {},
     create: {
-      id: 'seed-appointment-valentina',
+      id: 'seed-appointment-confirmada',
       clientId: valentina.id,
       propertyId: apartamento.id,
       agentId: agente.id,
-      scheduledAt: manana,
+      scheduledAt: diasDesdeHoy(1, 10),
       durationMinutes: 60,
       status: AppointmentStatus.CONFIRMADA,
       confirmationSent: true,
       reminder24hSent: false,
       reminder1hSent: false,
       notes: 'Cliente muy interesada. Confirmar con el portero antes de llegar.',
-      requestedTimes: [{ date: manana.toISOString(), preference: 'primera opción' }],
     },
   });
 
-  console.log(`Cita creada: ${valentina.name} — ${apartamento.city} — ${manana.toLocaleDateString('es-CO')}`);
+  // PENDIENTE — en 2 días 11am
+  await prisma.appointment.upsert({
+    where: { id: 'seed-appointment-pendiente' },
+    update: {},
+    create: {
+      id: 'seed-appointment-pendiente',
+      clientId: andres.id,
+      propertyId: casa.id,
+      agentId: agente.id,
+      scheduledAt: diasDesdeHoy(2, 11),
+      durationMinutes: 60,
+      status: AppointmentStatus.PENDIENTE,
+      confirmationSent: false,
+      reminder24hSent: false,
+      reminder1hSent: false,
+      notes: 'Pendiente de confirmar disponibilidad del propietario.',
+    },
+  });
+
+  // REAGENDADA — en 3 días 3pm
+  await prisma.appointment.upsert({
+    where: { id: 'seed-appointment-reagendada' },
+    update: {},
+    create: {
+      id: 'seed-appointment-reagendada',
+      clientId: valentina.id,
+      propertyId: casa.id,
+      agentId: agente.id,
+      scheduledAt: diasDesdeHoy(3, 15),
+      durationMinutes: 60,
+      status: AppointmentStatus.REAGENDADA,
+      confirmationSent: true,
+      reminder24hSent: false,
+      reminder1hSent: false,
+      notes: 'Reagendada a petición del cliente por compromisos laborales.',
+    },
+  });
+
+  // NO_ASISTIO — ayer 9am (para verificar que aparece en lista pero no en semana actual si es la semana pasada)
+  await prisma.appointment.upsert({
+    where: { id: 'seed-appointment-no-asistio' },
+    update: {},
+    create: {
+      id: 'seed-appointment-no-asistio',
+      clientId: andres.id,
+      propertyId: local.id,
+      agentId: agente.id,
+      scheduledAt: diasDesdeHoy(-1, 9),
+      durationMinutes: 45,
+      status: AppointmentStatus.NO_ASISTIO,
+      confirmationSent: true,
+      reminder24hSent: true,
+      reminder1hSent: true,
+      notes: 'No se presentó. Se intenta reagendar.',
+    },
+  });
+
+  console.log('Citas de prueba creadas: CONFIRMADA, PENDIENTE, REAGENDADA, NO_ASISTIO');
 
   // ─── SETTINGS SINGLETON — Serinzo Inmobiliaria ──────────────────────────────
 

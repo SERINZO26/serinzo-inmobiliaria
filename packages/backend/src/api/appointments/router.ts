@@ -93,10 +93,17 @@ appointmentsRouter.get(
     if (req.query.agentId && user.role !== 'AGENT') where.agentId = req.query.agentId as string;
     if (req.query.clientId) where.clientId = req.query.clientId as string;
 
-    // Filtro de rango de fechas construido de forma segura para evitar claves duplicadas
+    // Filtro de rango de fechas construido de forma segura para evitar claves duplicadas.
+    // Nota: new Date('YYYY-MM-DD') produce medianoche UTC, lo que excluye citas del
+    // mismo día en Colombia (UTC-5). Por eso usamos inicio del día para `from` y fin
+    // del día para `to`, garantizando que se incluyan todas las horas del rango.
     const scheduledAtFilter: { gte?: Date; lte?: Date } = {};
-    if (req.query.from) scheduledAtFilter.gte = new Date(req.query.from as string);
-    if (req.query.to) scheduledAtFilter.lte = new Date(req.query.to as string);
+    if (req.query.from) {
+      scheduledAtFilter.gte = new Date(`${req.query.from as string}T00:00:00.000Z`);
+    }
+    if (req.query.to) {
+      scheduledAtFilter.lte = new Date(`${req.query.to as string}T23:59:59.999Z`);
+    }
     if (Object.keys(scheduledAtFilter).length) where.scheduledAt = scheduledAtFilter;
 
     const [appointments, total] = await Promise.all([
