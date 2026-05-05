@@ -40,23 +40,77 @@ export class AssistantAgent extends BaseAgent {
   /** Sesiones activas por teléfono — clave: número E.164 (+57XXXXXXXXXX) */
   private readonly sessions = new Map<string, ConversationSession>();
 
-  /** Tiempo de inactividad antes de expirar la sesión (30 minutos) */
-  private readonly SESSION_TTL_MS = 30 * 60 * 1000;
+  /** TTL de inactividad: 24 horas. Coincide con la ventana de búsqueda en BD. */
+  private readonly SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
   constructor() {
     super();
-    // Limpiar sesiones expiradas cada 5 minutos
-    setInterval(() => this.cleanExpiredSessions(), 5 * 60 * 1000);
+    // Limpiar sesiones expiradas cada 30 minutos
+    setInterval(() => this.cleanExpiredSessions(), 30 * 60 * 1000);
   }
 
   // ── Gestión de sesiones ──────────────────────────────────────────────────────
 
-  private getSession(phone: string): ConversationSession {
+  /**
+   * Obtiene la sesión activa del número o la restaura desde la BD.
+   *
+   * Orden de prioridad:
+   * 1. Sesión en memoria (activa) → devuelve directamente
+   * 2. Conversación reciente en BD (últimas 24h) → restaura con historial
+   * 3. No existe → devuelve null (processMessage creará sesión nueva)
+   */
+  private async getOrRestoreSession(phone: string): Promise<ConversationSession | null> {
+    // 1. Sesión activa en memoria
     const existing = this.sessions.get(phone);
     if (existing) {
       existing.lastActivity = new Date();
       return existing;
     }
+
+    // 2. Buscar conversación reciente en BD (últimas 24 horas)
+    try {
+      const since = new Date(Date.now() - this.SESSION_TTL_MS);
+      const recentConv = await prisma.conversation.findFirst({
+        where: {
+          channel:   'WHATSAPP',
+          createdAt: { gte: since },
+          client: { phone },
+        },
+        include: {
+          turns: { orderBy: { timestamp: 'asc' }, take: 30 },
+          client: { select: { id: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (recentConv && recentConv.turns.length > 0) {
+        const messages: Anthropic.MessageParam[] = recentConv.turns.map((t) => ({
+          role:    t.role === 'USER' ? 'user' : 'assistant',
+          content: t.content,
+        }));
+
+        const restored: ConversationSession = {
+          phone,
+          messages,
+          clientId:       recentConv.client?.id ?? null,
+          conversationId: recentConv.id,
+          startedAt:      recentConv.createdAt,
+          lastActivity:   new Date(),
+        };
+        this.sessions.set(phone, restored);
+        console.log(`[agent-assistant] Sesión restaurada desde BD: ${phone} (${messages.length} turns, conv ${recentConv.id})`);
+        return restored;
+      }
+    } catch (err) {
+      console.error('[agent-assistant] Error buscando conversación previa en BD:', err);
+    }
+
+    // 3. Sin conversación reciente → sesión nueva
+    return null;
+  }
+
+  /** Crea una sesión vacía nueva para un número (primer contacto o sesión expirada > 24h) */
+  private createNewSession(phone: string): ConversationSession {
     const session: ConversationSession = {
       phone,
       messages:       [],
@@ -74,7 +128,7 @@ export class AssistantAgent extends BaseAgent {
     for (const [phone, session] of this.sessions) {
       if (now - session.lastActivity.getTime() > this.SESSION_TTL_MS) {
         this.sessions.delete(phone);
-        console.log(`[agent-assistant] Sesión expirada eliminada: ${phone}`);
+        console.log(`[agent-assistant] Sesión expirada eliminada de memoria: ${phone}`);
       }
     }
   }
@@ -159,9 +213,10 @@ export class AssistantAgent extends BaseAgent {
    * @returns      Respuesta de texto de Sofía
    */
   async processMessage(phone: string, text: string): Promise<string> {
-    const session = this.getSession(phone);
+    // Obtener sesión activa o restaurarla desde BD (últimas 24h)
+    const session = (await this.getOrRestoreSession(phone)) ?? this.createNewSession(phone);
 
-    // Crear registro en BD si es el primer mensaje de la sesión
+    // Crear registro en BD solo si es una sesión nueva (conversationId === null)
     await this.ensureConversationRecord(session);
 
     // Guardar turn del usuario en BD
