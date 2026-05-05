@@ -11,7 +11,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgent } from '../shared/base-agent';
+import { BaseAgent, ToolHandler } from '../shared/base-agent';
 import { buildSystemPrompt } from './prompts';
 import { ASSISTANT_TOOLS } from './tools';
 import { TOOL_HANDLERS, handleLogConversationSummary } from './handlers';
@@ -32,6 +32,106 @@ interface ConversationSession {
   startedAt: Date;
   /** Timestamp del último mensaje — para expirar sesiones inactivas */
   lastActivity: Date;
+}
+
+// ─── Helpers anti-loop ───────────────────────────────────────────────────────
+
+/**
+ * Extrae los property_ids de las tool calls en los últimos N mensajes del asistente.
+ * Se usan para detectar si ya se mostró un inmueble y evitar que el agente
+ * llame search_properties de nuevo cuando el cliente dice "sí".
+ *
+ * Herramientas que implican haber presentado un inmueble al cliente:
+ *   send_property_media, get_property_detail, check_availability, schedule_appointment
+ */
+function getRecentlyShownPropertyIds(
+  messages: Anthropic.MessageParam[],
+  lookback = 3,
+): Set<string> {
+  const ids = new Set<string>();
+
+  const assistantMsgs = messages
+    .filter((m) => m.role === 'assistant')
+    .slice(-lookback);
+
+  for (const msg of assistantMsgs) {
+    if (!Array.isArray(msg.content)) continue;
+    for (const block of msg.content) {
+      if (block.type !== 'tool_use') continue;
+      const propertyTools = [
+        'send_property_media',
+        'get_property_detail',
+        'check_availability',
+        'schedule_appointment',
+      ];
+      if (propertyTools.includes(block.name)) {
+        const input = block.input as Record<string, unknown>;
+        if (typeof input.property_id === 'string' && input.property_id) {
+          ids.add(input.property_id);
+        }
+      }
+    }
+  }
+
+  return ids;
+}
+
+/**
+ * Envuelve todos los tool handlers con dos guardas anti-loop:
+ *
+ * 1. Límite de tool calls totales en un único ciclo de respuesta.
+ *    Si se superan MAX_TOOL_CALLS, devuelve un error que hace que
+ *    el modelo pare de encadenar herramientas y responda directamente.
+ *
+ * 2. Bloqueo de search_properties cuando ya hay property_ids recientes.
+ *    Si el modelo intenta buscar de nuevo tras haber mostrado un inmueble,
+ *    se le devuelve el property_id que ya tenía para que ejecute la
+ *    acción correcta (fotos o cita) en lugar de volver a buscar.
+ */
+function wrapHandlersAntiLoop(
+  handlers:           Record<string, ToolHandler>,
+  recentPropertyIds:  Set<string>,
+  phone:              string,
+  MAX_TOOL_CALLS = 10,
+): Record<string, ToolHandler> {
+  let totalToolCalls = 0;
+  const wrapped: Record<string, ToolHandler> = {};
+
+  for (const [name, handler] of Object.entries(handlers)) {
+    wrapped[name] = async (input) => {
+      totalToolCalls++;
+
+      // ── Guarda 1: límite de tool calls ──────────────────────────────────
+      if (totalToolCalls > MAX_TOOL_CALLS) {
+        console.warn(
+          `[agent-assistant] Anti-loop: ${totalToolCalls} tool calls en ${phone} — forzando stop`,
+        );
+        return {
+          error: 'Límite de acciones alcanzado. Responde directamente al cliente sin llamar más herramientas.',
+        };
+      }
+
+      // ── Guarda 2: bloquear search_properties si ya hay inmuebles ────────
+      if (name === 'search_properties' && recentPropertyIds.size > 0) {
+        const shownId = [...recentPropertyIds][0]; // el más reciente
+        console.warn(
+          `[agent-assistant] Anti-loop: bloqueando search_properties — property_id reciente: ${shownId} (${phone})`,
+        );
+        return {
+          blocked:            true,
+          recent_property_id: shownId,
+          message:
+            `Ya presentaste el inmueble ${shownId}. NO busques de nuevo. ` +
+            `Ejecuta la acción que ofreciste (send_property_media o check_availability) ` +
+            `usando property_id="${shownId}".`,
+        };
+      }
+
+      return handler(input);
+    };
+  }
+
+  return wrapped;
 }
 
 // ─── AssistantAgent ───────────────────────────────────────────────────────────
@@ -232,7 +332,7 @@ export class AssistantAgent extends BaseAgent {
     // Construir handlers con conversationId inyectado en log_conversation_summary
     // (para que actualice el registro existente en lugar de crear uno nuevo)
     const conversationId = session.conversationId;
-    const toolHandlers = {
+    const baseHandlers = {
       ...TOOL_HANDLERS,
       log_conversation_summary: async (input: unknown) => {
         const result = await handleLogConversationSummary(input, conversationId);
@@ -245,7 +345,11 @@ export class AssistantAgent extends BaseAgent {
 
         return result;
       },
-    };
+    } as Record<string, ToolHandler>;
+
+    // ─── Anti-loop: calcular property_ids recientes y envolver handlers ─────
+    const recentPropertyIds = getRecentlyShownPropertyIds(session.messages);
+    const toolHandlers      = wrapHandlersAntiLoop(baseHandlers, recentPropertyIds, phone);
 
     try {
       const response = await this.chat({
