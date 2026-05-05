@@ -143,6 +143,13 @@ export class AssistantAgent extends BaseAgent {
   /** TTL de inactividad: 24 horas. Coincide con la ventana de búsqueda en BD. */
   private readonly SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
+  /**
+   * Lock por teléfono: evita que dos mensajes del mismo número se procesen
+   * en paralelo, lo que generaría dos sesiones independientes y causaría
+   * que Sofía se presentara dos veces o perdiera contexto entre mensajes.
+   */
+  private readonly processingLocks = new Map<string, boolean>();
+
   constructor() {
     super();
     // Limpiar sesiones expiradas cada 30 minutos
@@ -310,11 +317,42 @@ export class AssistantAgent extends BaseAgent {
 
   /**
    * Procesa un mensaje de texto entrante de WhatsApp.
+   *
+   * Incluye un lock por número de teléfono: si llega un segundo mensaje
+   * antes de que el primero termine, espera hasta 5 s antes de proceder.
+   * Esto evita que mensajes rápidos consecutivos (o el doble-envío de Twilio)
+   * generen dos sesiones paralelas y provoquen doble saludo o pérdida de contexto.
+   *
    * @param phone  Número del cliente en formato +57XXXXXXXXXX
    * @param text   Contenido del mensaje
    * @returns      Respuesta de texto de Sofía
    */
   async processMessage(phone: string, text: string): Promise<string> {
+    // ── Lock: esperar si este número ya está siendo procesado ───────────────
+    const LOCK_WAIT_MS    = 500;   // intervalo de reintento
+    const LOCK_TIMEOUT_MS = 5000;  // máximo que esperamos antes de proceder igual
+    let waited = 0;
+
+    while (this.processingLocks.get(phone) && waited < LOCK_TIMEOUT_MS) {
+      await new Promise<void>((resolve) => setTimeout(resolve, LOCK_WAIT_MS));
+      waited += LOCK_WAIT_MS;
+    }
+
+    if (waited > 0) {
+      console.log(`[agent-assistant] Lock liberado para ${phone} tras ${waited}ms`);
+    }
+
+    this.processingLocks.set(phone, true);
+
+    try {
+      return await this._processMessageInner(phone, text);
+    } finally {
+      this.processingLocks.set(phone, false);
+    }
+  }
+
+  /** Lógica interna de processMessage — llamar solo desde processMessage (con lock). */
+  private async _processMessageInner(phone: string, text: string): Promise<string> {
     // Obtener sesión activa o restaurarla desde BD (últimas 24h)
     const session = (await this.getOrRestoreSession(phone)) ?? this.createNewSession(phone);
 
