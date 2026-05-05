@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
-type Operacion = 'venta' | 'arriendo' | '';
+type Operacion = 'VENTA' | 'ARRIENDO' | '';
 
 const TIPOS_INMUEBLE = [
   { value: 'CASA', label: 'Casa' },
@@ -37,11 +37,12 @@ const TIPOS_INMUEBLE = [
 ];
 
 const ORIGENES = [
-  { value: 'llamada', label: 'Llamada' },
-  { value: 'web', label: 'Web' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'referido', label: 'Referido' },
-  { value: 'visita_directa', label: 'Visita directa' },
+  { value: 'LLAMADA',       label: 'Llamada' },
+  { value: 'WEB',           label: 'Web' },
+  { value: 'WHATSAPP',      label: 'WhatsApp' },
+  { value: 'REFERIDO',      label: 'Referido' },
+  { value: 'CAMPANA',       label: 'Campaña' },
+  { value: 'VISITA_DIRECTA', label: 'Visita directa' },
 ];
 
 // ─── Componente chips de selección múltiple ───────────────────────────────────
@@ -296,8 +297,8 @@ export default function ClienteNuevoPage() {
               <Label>¿Quiere comprar o arrendar?</Label>
               <div className="flex gap-3">
                 {[
-                  { value: 'venta', label: 'Comprar' },
-                  { value: 'arriendo', label: 'Arrendar' },
+                  { value: 'VENTA', label: 'Comprar' },
+                  { value: 'ARRIENDO', label: 'Arrendar' },
                 ].map((op) => (
                   <button
                     key={op.value}

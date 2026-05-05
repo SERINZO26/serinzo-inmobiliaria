@@ -40,11 +40,16 @@ const editSchema = z.object({
 });
 
 // GET /api/v1/staff — lista de usuarios internos
+// Por defecto solo devuelve usuarios ACTIVOS. Pasar ?includeInactive=true para ver todos.
 staffRouter.get(
   '/',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { role, status } = req.query as { role?: string; status?: string };
+    const { role, status, includeInactive } = req.query as {
+      role?: string;
+      status?: string;
+      includeInactive?: string;
+    };
 
     const where: Record<string, unknown> = {};
 
@@ -52,8 +57,13 @@ staffRouter.get(
       where.role = role as Role;
     }
 
+    // Filtro de status: si se pasa explícitamente se usa ese valor.
+    // Si no se pasa y tampoco includeInactive=true, filtra solo ACTIVE por defecto.
+    // Esto evita que usuarios INACTIVE aparezcan en los selectores del panel.
     if (status === 'ACTIVE' || status === 'INACTIVE') {
       where.status = status;
+    } else if (includeInactive !== 'true') {
+      where.status = 'ACTIVE';
     }
 
     const users = await prisma.user.findMany({

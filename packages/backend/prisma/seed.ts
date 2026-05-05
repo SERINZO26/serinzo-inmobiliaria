@@ -358,9 +358,11 @@ async function main() {
   }
 
   // CONFIRMADA — mañana 10am
+  // update: incluye scheduledAt para que re-correr el seed actualice la fecha relativa al día actual.
+  // Sin esto, upsert con update:{} deja la fecha del primer seed (semanas o meses atrás).
   await prisma.appointment.upsert({
     where: { id: 'seed-appointment-confirmada' },
-    update: {},
+    update: { scheduledAt: diasDesdeHoy(1, 10) },
     create: {
       id: 'seed-appointment-confirmada',
       clientId: valentina.id,
@@ -379,7 +381,7 @@ async function main() {
   // PENDIENTE — en 2 días 11am
   await prisma.appointment.upsert({
     where: { id: 'seed-appointment-pendiente' },
-    update: {},
+    update: { scheduledAt: diasDesdeHoy(2, 11) },
     create: {
       id: 'seed-appointment-pendiente',
       clientId: andres.id,
@@ -398,7 +400,7 @@ async function main() {
   // REAGENDADA — en 3 días 3pm
   await prisma.appointment.upsert({
     where: { id: 'seed-appointment-reagendada' },
-    update: {},
+    update: { scheduledAt: diasDesdeHoy(3, 15) },
     create: {
       id: 'seed-appointment-reagendada',
       clientId: valentina.id,
@@ -414,10 +416,10 @@ async function main() {
     },
   });
 
-  // NO_ASISTIO — ayer 9am (para verificar que aparece en lista pero no en semana actual si es la semana pasada)
+  // NO_ASISTIO — ayer 9am
   await prisma.appointment.upsert({
     where: { id: 'seed-appointment-no-asistio' },
-    update: {},
+    update: { scheduledAt: diasDesdeHoy(-1, 9) },
     create: {
       id: 'seed-appointment-no-asistio',
       clientId: andres.id,

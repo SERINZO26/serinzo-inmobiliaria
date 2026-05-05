@@ -310,11 +310,13 @@ function CreateModal({ open, onClose, defaultAgentId }: CreateModalProps) {
       if (!clientId || !propertyId || !agentId || !date || !time) {
         throw new Error('Completa todos los campos obligatorios');
       }
+      // Agregar offset de Colombia (UTC-5) explícitamente para que el servidor
+      // no interprete la cadena como hora UTC. Colombia no tiene DST, siempre -05:00.
       return appointmentsApi.create({
         clientId,
         propertyId,
         agentId,
-        scheduledAt: `${date}T${time}:00`,
+        scheduledAt: `${date}T${time}:00-05:00`,
         durationMinutes: duration,
         notes: notes || undefined,
         isSpecialCase,
@@ -325,7 +327,12 @@ function CreateModal({ open, onClose, defaultAgentId }: CreateModalProps) {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       handleClose();
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: unknown) => {
+      // Mostrar el mensaje real del backend en lugar de "Request failed with status 400"
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiMsg = (err as any)?.response?.data?.error as string | undefined;
+      setError(apiMsg ?? (err instanceof Error ? err.message : 'Error al agendar la cita'));
+    },
   });
 
   function handleClose() {
