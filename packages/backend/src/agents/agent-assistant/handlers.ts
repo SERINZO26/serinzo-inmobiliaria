@@ -417,6 +417,8 @@ export const handleCancelAppointment: ToolHandler = async (input) => {
 // ─── find_appointment ─────────────────────────────────────────────────────────
 // Permite a Sofía buscar una cita por datos que el cliente conoce (nombre,
 // teléfono, inmueble, fecha) sin necesitar el ID técnico de la cita.
+// Busca en TODOS los estados excepto CANCELADA (incluye PENDIENTE, CONFIRMADA,
+// REAGENDADA, NO_ASISTIO) para que el cliente pueda reagendar cualquier cita activa.
 
 export const handleFindAppointment: ToolHandler = async (input) => {
   const { client_name, client_phone, property_name, approximate_date } = input as {
@@ -426,62 +428,98 @@ export const handleFindAppointment: ToolHandler = async (input) => {
     approximate_date?: string;
   };
 
+  console.log('=== BUSCANDO CITA ===');
+  console.log('Parámetros:', JSON.stringify({ client_name, client_phone, property_name, approximate_date }, null, 2));
+
+  // Incluir PENDIENTE, CONFIRMADA, REAGENDADA, NO_ASISTIO — excluir solo CANCELADA
   const where: Record<string, unknown> = {
     status: { notIn: ['CANCELADA'] },
   };
 
-  // Filtrar por datos del cliente
-  if (client_name || client_phone) {
-    const clientWhere: Record<string, unknown> = {};
-    if (client_name) {
-      clientWhere.name = { contains: client_name, mode: 'insensitive' };
-    }
-    if (client_phone) {
-      // Buscar por los últimos 7 dígitos para tolerar diferentes formatos
-      const digits = client_phone.replace(/\D/g, '').slice(-7);
-      if (digits.length >= 7) {
-        clientWhere.phone = { contains: digits };
-      }
-    }
-    where.client = clientWhere;
+  // Buscar por nombre: buscar nombre completo Y también solo el primer nombre
+  // para tolerar que el cliente diga "Jorge" en lugar de "Jorge Montana"
+  if (client_name) {
+    const primerNombre = client_name.trim().split(' ')[0];
+    where.client = {
+      OR: [
+        { name: { contains: client_name.trim(), mode: 'insensitive' as const } },
+        { name: { contains: primerNombre,        mode: 'insensitive' as const } },
+      ],
+    };
   }
 
-  // Filtrar por nombre del inmueble
+  // Buscar por teléfono — últimos 7 dígitos para tolerar formatos distintos
+  if (client_phone) {
+    const digits = client_phone.replace(/\D/g, '').slice(-7);
+    if (digits.length >= 7) {
+      where.client = {
+        ...(where.client as object ?? {}),
+        phone: { contains: digits },
+      };
+    }
+  }
+
+  // Buscar por inmueble: en título, barrio o ciudad
   if (property_name) {
-    where.property = { title: { contains: property_name, mode: 'insensitive' } };
+    where.property = {
+      OR: [
+        { title:        { contains: property_name, mode: 'insensitive' as const } },
+        { neighborhood: { contains: property_name, mode: 'insensitive' as const } },
+        { city:         { contains: property_name, mode: 'insensitive' as const } },
+      ],
+    };
   }
 
-  // Filtrar por fecha aproximada
+  // Buscar por fecha aproximada en hora Colombia (UTC-5).
+  // 00:00 Colombia = 05:00 UTC; 23:59 Colombia = 04:59 UTC del día siguiente.
   if (approximate_date) {
-    const now = new Date();
+    const today = new Date();
     let targetDate: Date;
+
     if (approximate_date === 'hoy') {
-      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (approximate_date === 'mañana') {
-      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      targetDate = new Date(today);
+    } else if (approximate_date === 'mañana' || approximate_date === 'manana') {
+      targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + 1);
     } else {
       targetDate = new Date(approximate_date);
     }
-    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(new Date(startOfDay).setHours(23, 59, 59, 999));
+
+    // Rango completo del día en hora Colombia expresado en UTC
+    const startOfDay = new Date(targetDate);
+    startOfDay.setUTCHours(5, 0, 0, 0);        // 00:00 Colombia → 05:00 UTC
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setUTCHours(28, 59, 59, 999);      // 23:59 Colombia → 04:59 UTC día siguiente
+
     where.scheduledAt = { gte: startOfDay, lte: endOfDay };
+    console.log(`Filtro fecha: ${startOfDay.toISOString()} → ${endOfDay.toISOString()}`);
   }
 
   const appointments = await prisma.appointment.findMany({
     where: where as any,
     include: {
-      client:   { select: { name: true, phone: true } },
-      property: { select: { title: true, city: true, neighborhood: true } },
+      client:   { select: { id: true, name: true, phone: true } },
+      property: { select: { id: true, title: true, city: true, neighborhood: true } },
       agent:    { select: { name: true } },
     },
     orderBy: { scheduledAt: 'asc' },
     take: 5,
   });
 
+  console.log('Citas encontradas:', appointments.length);
+  console.log('Detalle:', appointments.map((a) => ({
+    cliente:  a.client.name,
+    inmueble: a.property.title,
+    fecha:    a.scheduledAt.toISOString(),
+    status:   a.status,
+  })));
+  console.log('=== FIN BÚSQUEDA CITA ===');
+
   if (appointments.length === 0) {
     return {
       found: false,
-      message: 'No encontré citas con esos datos. Puedes intentar con otro nombre, inmueble o fecha.',
+      message: 'No encontré citas con esos datos. Puedes intentar con otro nombre, el nombre del inmueble o la fecha.',
     };
   }
 
@@ -489,13 +527,13 @@ export const handleFindAppointment: ToolHandler = async (input) => {
     found: true,
     count: appointments.length,
     appointments: appointments.map((a) => ({
-      id:           a.id,
-      client:       a.client.name,
-      property:     `${a.property.title} (${a.property.neighborhood ?? a.property.city})`,
-      date:         a.scheduledAt.toLocaleString('es-CO', { dateStyle: 'full', timeStyle: 'short' }),
-      date_iso:     a.scheduledAt.toISOString(),
-      status:       a.status,
-      agent:        a.agent.name,
+      id:       a.id,
+      client:   a.client.name,
+      property: `${a.property.title} (${a.property.neighborhood ?? a.property.city})`,
+      date:     formatColombia(a.scheduledAt),
+      date_iso: a.scheduledAt.toISOString(),
+      status:   a.status,
+      agent:    a.agent.name,
     })),
   };
 };
