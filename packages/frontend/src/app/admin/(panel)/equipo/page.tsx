@@ -116,6 +116,7 @@ export default function EquipoPage() {
   // Modal disponibilidad
   const [availUser, setAvailUser] = useState<User | null>(null);
   const [availMap, setAvailMap] = useState<AvailMap>(defaultAvailMap());
+  const [availError, setAvailError] = useState('');
 
   // ── Queries ───────────────────────────────────────────────────────────────
 
@@ -210,7 +211,9 @@ export default function EquipoPage() {
       const existing: Availability[] = (res.data as { data?: Availability[] })?.data ?? [];
       // 2. Eliminar todos los registros actuales
       await Promise.all(existing.map((r) => availabilityApi.remove(r.id)));
-      // 3. Crear los nuevos registros para los días habilitados
+      // 3. Crear los nuevos registros para los días habilitados.
+      // No se envían validFrom/validUntil/blockReason para evitar que Zod los rechace
+      // al recibir null en lugar de undefined (el backend ahora acepta ambos).
       const creates = DAYS.filter((d) => map[d.value]?.enabled).map((d) =>
         availabilityApi.create({
           userId,
@@ -227,15 +230,22 @@ export default function EquipoPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability'] });
-      toast({ title: 'Disponibilidad guardada' });
+      toast({ title: 'Disponibilidad guardada correctamente' });
+      setAvailError('');
       setAvailUser(null);
     },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'No se pudo guardar la disponibilidad.',
-        variant: 'destructive',
-      });
+    onError: (err: unknown) => {
+      // Extraer el mensaje real del backend para mostrarlo en el modal
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiErr = err as any;
+      const mensaje: string =
+        apiErr?.response?.data?.error ??
+        apiErr?.response?.data?.message ??
+        (typeof apiErr?.response?.data === 'string' ? apiErr.response.data : null) ??
+        'Error desconocido al guardar la disponibilidad';
+      console.error('Error guardando disponibilidad:', mensaje, apiErr?.response?.data);
+      setAvailError(mensaje);
+      toast({ title: 'Error', description: mensaje, variant: 'destructive' });
     },
   });
 
@@ -521,7 +531,15 @@ export default function EquipoPage() {
       </Dialog>
 
       {/* ── Modal: Disponibilidad del agente ──────────────────────────────── */}
-      <Dialog open={!!availUser} onOpenChange={(open) => !open && setAvailUser(null)}>
+      <Dialog
+        open={!!availUser}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAvailUser(null);
+            setAvailError('');
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -587,8 +605,20 @@ export default function EquipoPage() {
             </div>
           )}
 
+          {availError && (
+            <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {availError}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAvailUser(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAvailUser(null);
+                setAvailError('');
+              }}
+            >
               Cancelar
             </Button>
             <Button

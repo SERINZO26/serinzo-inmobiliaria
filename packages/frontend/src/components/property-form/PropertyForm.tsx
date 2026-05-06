@@ -578,11 +578,32 @@ export function PropertyForm({ property, mode }: PropertyFormProps) {
         />
 
         <div className="mt-4 space-y-1.5">
-          <Label>URL de video o tour virtual</Label>
+          <Label>Video / Tour virtual</Label>
+          {form.virtualTourUrl && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <span className="text-lg flex-shrink-0">🎥</span>
+              <a
+                href={form.virtualTourUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm truncate flex-1"
+              >
+                {form.virtualTourUrl}
+              </a>
+              <button
+                type="button"
+                onClick={() => set('virtualTourUrl', '')}
+                className="ml-auto text-red-500 hover:text-red-700 text-xs font-medium flex-shrink-0"
+              >
+                Quitar
+              </button>
+            </div>
+          )}
           <Input
+            type="url"
             value={form.virtualTourUrl}
             onChange={(e) => set('virtualTourUrl', e.target.value)}
-            placeholder="Ej: https://youtube.com/watch?v=..."
+            placeholder="https://youtube.com/watch?v=... o URL del tour virtual"
           />
         </div>
       </section>

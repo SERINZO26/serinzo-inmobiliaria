@@ -90,19 +90,23 @@ availabilityRouter.get(
 
 const availabilitySchema = z.object({
   userId: z.string(),
-  dayOfWeek: z.number().int().min(0).max(6),
+  // dayOfWeek puede llegar como string desde JSON si el cliente hace parseInt pero falla —
+  // coerce convierte "1" → 1 automáticamente para mayor compatibilidad.
+  dayOfWeek: z.coerce.number().int().min(0).max(6),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Formato inválido, usa HH:MM'),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Formato inválido, usa HH:MM'),
+  // Usamos .nullish() (acepta null y undefined) porque el frontend puede enviar null
+  // cuando el campo es opcional y no tiene valor asignado.
   validFrom: z
     .string()
     .transform((v) => new Date(v))
-    .optional(),
+    .nullish(),
   validUntil: z
     .string()
     .transform((v) => new Date(v))
-    .optional(),
+    .nullish(),
   isBlocked: z.boolean().default(false),
-  blockReason: z.string().optional(),
+  blockReason: z.string().nullish(),
 });
 
 // POST /api/v1/availability
