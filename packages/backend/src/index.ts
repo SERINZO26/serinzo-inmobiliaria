@@ -1,3 +1,7 @@
+// CRÍTICO: fijar timezone Colombia ANTES que cualquier import.
+// Sin esto, new Date('2026-05-07T14:00') se interpreta como UTC en Railway/Render.
+process.env.TZ = 'America/Bogota';
+
 import { env } from './lib/env'; // carga dotenv y valida antes que cualquier otra cosa
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';

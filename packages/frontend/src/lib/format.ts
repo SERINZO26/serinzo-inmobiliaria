@@ -1,5 +1,9 @@
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// Todas las fechas del sistema se muestran en hora Colombia, sin importar
+// desde dónde acceda el usuario al panel.
+const TZ = 'America/Bogota';
 
 export function formatCOP(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -23,11 +27,24 @@ export function formatPrice(amount: number, currency: string): string {
 }
 
 export function formatDate(date: string | Date): string {
-  return format(new Date(date), "d 'de' MMMM yyyy", { locale: es });
+  return new Date(date).toLocaleDateString('es-CO', {
+    timeZone: TZ,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 export function formatDateTime(date: string | Date): string {
-  return format(new Date(date), "d 'de' MMMM yyyy, HH:mm", { locale: es });
+  return new Date(date).toLocaleString('es-CO', {
+    timeZone: TZ,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 export function formatRelative(date: string | Date): string {
@@ -35,11 +52,21 @@ export function formatRelative(date: string | Date): string {
 }
 
 export function formatShortDate(date: string | Date): string {
-  return format(new Date(date), 'dd/MM/yyyy', { locale: es });
+  return new Date(date).toLocaleDateString('es-CO', {
+    timeZone: TZ,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 export function formatTime(date: string | Date): string {
-  return format(new Date(date), 'HH:mm', { locale: es });
+  return new Date(date).toLocaleTimeString('es-CO', {
+    timeZone: TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 // Nivel de interés → color Tailwind
