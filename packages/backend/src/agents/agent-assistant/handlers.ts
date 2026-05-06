@@ -38,7 +38,7 @@ export const handleSearchProperties: ToolHandler = async (input) => {
   } = input as {
     operation?: string; type?: string; city?: string;
     neighborhood?: string; zones?: string[];
-    budget_max?: number; budget_min?: number;
+    budget_max?: number | string; budget_min?: number | string;
     min_bedrooms?: number; min_bathrooms?: number;
   };
 
@@ -48,45 +48,66 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     budget_max, budget_min, min_bedrooms, min_bathrooms,
   }, null, 2));
 
+  // Siempre filtrar solo publicados y disponibles
   const where: Record<string, unknown> = {
     status: 'DISPONIBLE',
     published: true,
     archived: false,
   };
 
+  // Operación: normalizar case e incluir VENTA_O_ARRIENDO según corresponda.
   // CRÍTICO: inmuebles en arriendo pueden tener operation=VENTA_O_ARRIENDO.
-  // Filtrar solo 'ARRIENDO' excluye todos los de operación mixta.
   if (operation) {
-    if (operation === 'ARRIENDO') {
+    const op = operation.toUpperCase();
+    if (op === 'ARRIENDO') {
       where.operation = { in: ['ARRIENDO', 'VENTA_O_ARRIENDO'] };
-    } else if (operation === 'VENTA') {
+    } else if (op === 'VENTA') {
       where.operation = { in: ['VENTA', 'VENTA_O_ARRIENDO'] };
     } else {
-      where.operation = operation;
+      where.operation = op;
     }
     console.log('Filtro operation:', where.operation);
   }
 
+  // Tipo: normalizar case y mapear apartaestudio → APARTAMENTO.
   if (type) {
-    where.type = type;
-    console.log('Filtro tipo:', type);
+    const tipoNorm = type.toUpperCase()
+      .replace('APARTAESTUDIO', 'APARTAMENTO')
+      .replace('ESTUDIO', 'APARTAMENTO');
+    where.type = tipoNorm;
+    console.log('Filtro tipo:', tipoNorm);
   }
 
-  // city siempre insensitive — "bogota" encuentra "Bogotá"
-  if (city) {
-    where.city = { contains: city, mode: 'insensitive' };
-    console.log('Filtro ciudad:', city);
-  }
-
-  // Soporte de múltiples zonas con OR + contains insensitive.
-  // "El Chico" encontrará tanto "Chico" como "El Chico Norte" en la BD.
-  // zones[] tiene prioridad sobre neighborhood (más preciso).
+  // Zonas activas: zones[] tiene prioridad sobre neighborhood.
   const activeZones = zones && zones.length > 0 ? zones : (neighborhood ? [neighborhood] : []);
-  if (activeZones.length > 0) {
-    where.OR = activeZones.map((zone) => ({
-      neighborhood: { contains: zone, mode: 'insensitive' },
-    }));
-    console.log('Filtro zonas (OR):', activeZones);
+
+  // Ciudad + zonas → AND(city, OR(zonas)).
+  // Solo zonas → OR(neighborhood, address) para máxima cobertura.
+  // Solo ciudad → contains city insensitive.
+  if (city && activeZones.length > 0) {
+    where.AND = [
+      { city: { contains: city, mode: 'insensitive' as const } },
+      {
+        OR: activeZones.map((zone) => ({
+          neighborhood: { contains: zone, mode: 'insensitive' as const },
+        })),
+      },
+    ];
+    console.log('Filtro ciudad+zonas (AND+OR):', city, activeZones);
+  } else if (activeZones.length > 0) {
+    // Buscar zona también en address por si el barrio está en la dirección
+    where.OR = [
+      ...activeZones.map((zone) => ({
+        neighborhood: { contains: zone, mode: 'insensitive' as const },
+      })),
+      ...activeZones.map((zone) => ({
+        address: { contains: zone, mode: 'insensitive' as const },
+      })),
+    ];
+    console.log('Filtro zonas (OR neighborhood+address):', activeZones);
+  } else if (city) {
+    where.city = { contains: city, mode: 'insensitive' as const };
+    console.log('Filtro ciudad:', city);
   }
 
   // Solo filtrar habitaciones si el cliente lo especificó. Para apartaestudio min_bedrooms=0.
@@ -99,10 +120,21 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     console.log('Filtro baños mínimos:', min_bathrooms);
   }
 
-  if (budget_min || budget_max) {
+  // Presupuesto: parsear si viene como string con puntos (formato colombiano "2.800.000")
+  const parseBudget = (val: number | string | undefined): number | undefined => {
+    if (val == null) return undefined;
+    if (typeof val === 'number') return val;
+    const parsed = parseFloat(String(val).replace(/\./g, '').replace(',', '.'));
+    return isNaN(parsed) ? undefined : parsed;
+  };
+
+  const parsedMin = parseBudget(budget_min);
+  const parsedMax = parseBudget(budget_max);
+
+  if (parsedMin || parsedMax) {
     where.price = {
-      ...(budget_min ? { gte: budget_min } : {}),
-      ...(budget_max ? { lte: budget_max } : {}),
+      ...(parsedMin ? { gte: parsedMin } : {}),
+      ...(parsedMax ? { lte: parsedMax } : {}),
     };
     console.log('Filtro precio:', where.price);
   }
@@ -273,6 +305,33 @@ export const handleCheckAvailability: ToolHandler = async (input) => {
   };
 };
 
+// ─── Helpers de zona horaria Colombia (UTC-5) ─────────────────────────────────
+// El servidor corre en UTC. Cuando el agente recibe "4:30pm" del cliente,
+// construye "2026-05-07T16:30:00" sin offset → JS lo interpreta como UTC
+// y se guarda 5 horas adelantado. Este helper corrige el offset.
+
+function toColombiaUTC(scheduledAt: string): Date {
+  // Si ya tiene offset explícito (Z, +HH:MM, -HH:MM), respetar tal cual
+  if (scheduledAt.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(scheduledAt)) {
+    return new Date(scheduledAt);
+  }
+  // Sin offset → interpretar como hora Colombia (UTC-5): agregar -05:00
+  return new Date(scheduledAt + '-05:00');
+}
+
+function formatColombia(date: Date): string {
+  return date.toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 // ─── schedule_appointment ─────────────────────────────────────────────────────
 
 export const handleScheduleAppointment: ToolHandler = async (input) => {
@@ -280,6 +339,10 @@ export const handleScheduleAppointment: ToolHandler = async (input) => {
   const { client_id, property_id, scheduled_at, notes } = input as {
     client_id: string; property_id: string; scheduled_at: string; notes?: string;
   };
+
+  // Convertir hora Colombia → UTC antes de guardar en BD
+  const scheduledDate = toColombiaUTC(scheduled_at);
+  console.log(`[schedule] Input: "${scheduled_at}" → UTC: ${scheduledDate.toISOString()}`);
 
   // Verificar que el agente asignado exista
   const property = await prisma.property.findUnique({
@@ -294,7 +357,7 @@ export const handleScheduleAppointment: ToolHandler = async (input) => {
       clientId:    client_id,
       propertyId:  property_id,
       agentId:     property.assignedAgentId,
-      scheduledAt: new Date(scheduled_at),
+      scheduledAt: scheduledDate,
       status:      'PENDIENTE',
       notes:       notes ?? null,
     },
@@ -306,7 +369,7 @@ export const handleScheduleAppointment: ToolHandler = async (input) => {
     appointment_id: appointment.id,
     scheduled_at:   appointment.scheduledAt.toISOString(),
     status:         appointment.status,
-    message: `Cita agendada para ${new Date(scheduled_at).toLocaleString('es-CO', { dateStyle: 'full', timeStyle: 'short' })}`,
+    message: `Cita agendada para el ${formatColombia(appointment.scheduledAt)}`,
   };
 };
 
@@ -317,20 +380,24 @@ export const handleRescheduleAppointment: ToolHandler = async (input) => {
     appointment_id: string; new_scheduled_at: string; reason?: string;
   };
 
+  const newDate = toColombiaUTC(new_scheduled_at);
+  console.log(`[reschedule] Input: "${new_scheduled_at}" → UTC: ${newDate.toISOString()}`);
+
   const updated = await prisma.appointment.update({
     where: { id: appointment_id },
     data: {
-      scheduledAt:  new Date(new_scheduled_at),
-      status:       'REAGENDADA',
-      notes:        reason ?? null,
+      scheduledAt: newDate,
+      status:      'REAGENDADA',
+      notes:       reason ?? null,
     },
     select: { id: true, scheduledAt: true },
   });
 
   return {
     success: true,
-    appointment_id: updated.id,
+    appointment_id:   updated.id,
     new_scheduled_at: updated.scheduledAt.toISOString(),
+    message: `Cita reagendada para el ${formatColombia(updated.scheduledAt)}`,
   };
 };
 
