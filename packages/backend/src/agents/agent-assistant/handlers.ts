@@ -37,18 +37,36 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     budget_max?: number; budget_min?: number; min_bedrooms?: number; min_bathrooms?: number;
   };
 
+  console.log('[search_properties] params:', {
+    operation, type, city, neighborhood, budget_max, budget_min, min_bedrooms, min_bathrooms,
+  });
+
   const where: Record<string, unknown> = {
     status: 'DISPONIBLE',
     published: true,
     archived: false,
   };
 
-  if (operation) where.operation = operation;
+  // CRÍTICO: un inmueble "en arriendo" puede tener operation=ARRIENDO o VENTA_O_ARRIENDO.
+  // Filtrar solo por 'ARRIENDO' excluye todos los de operación mixta.
+  // Lo mismo aplica para VENTA. Siempre usar { in: [...] }.
+  if (operation) {
+    if (operation === 'ARRIENDO') {
+      where.operation = { in: ['ARRIENDO', 'VENTA_O_ARRIENDO'] };
+    } else if (operation === 'VENTA') {
+      where.operation = { in: ['VENTA', 'VENTA_O_ARRIENDO'] };
+    } else {
+      where.operation = operation;
+    }
+  }
+
   if (type) where.type = type;
+  // city siempre insensitive — "bogota" debe encontrar "Bogotá"
   if (city) where.city = { contains: city, mode: 'insensitive' };
   if (neighborhood) where.neighborhood = { contains: neighborhood, mode: 'insensitive' };
-  if (min_bedrooms) where.bedrooms = { gte: min_bedrooms };
-  if (min_bathrooms) where.bathrooms = { gte: min_bathrooms };
+  // Solo filtrar por habitaciones si el cliente lo especificó — NUNCA asumir valor mínimo
+  if (min_bedrooms != null && min_bedrooms > 0) where.bedrooms = { gte: min_bedrooms };
+  if (min_bathrooms != null && min_bathrooms > 0) where.bathrooms = { gte: min_bathrooms };
   if (budget_min || budget_max) {
     where.price = {
       ...(budget_min ? { gte: budget_min } : {}),
@@ -60,8 +78,13 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     where: where as any,
     select: PUBLIC_PROPERTY_SELECT,
     orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
-    take: 3,
+    take: 5, // aumentamos a 5 para dar más opciones al modelo
   });
+
+  console.log('[search_properties] results:', properties.length, 'inmuebles encontrados');
+  if (properties.length === 0) {
+    console.log('[search_properties] where clause:', JSON.stringify(where, null, 2));
+  }
 
   return {
     count: properties.length,

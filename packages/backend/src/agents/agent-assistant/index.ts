@@ -18,6 +18,24 @@ import { TOOL_HANDLERS, handleLogConversationSummary } from './handlers';
 import { speechToText } from '../../services/voice';
 import { prisma } from '../../lib/prisma';
 
+// ─── Normalización del teléfono ───────────────────────────────────────────────
+
+/**
+ * Normaliza cualquier formato de número de teléfono a solo dígitos.
+ * Esto garantiza que el mismo número siempre use la misma clave en el Map de sesiones,
+ * independientemente del formato en que llegue de Twilio.
+ *
+ *   "whatsapp:+573001234567" → "573001234567"
+ *   "+573001234567"          → "573001234567"
+ *   "573001234567"           → "573001234567"
+ *
+ * Twilio no es consistente: a veces envía con '+', a veces sin él.
+ * Sin esta normalización, el mismo cliente genera dos claves distintas
+ * en el Map, creando dos sesiones paralelas y provocando doble saludo.
+ */
+const normalizePhone = (phone: string): string =>
+  phone.replace('whatsapp:', '').replace(/\D/g, '');
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface ConversationSession {
@@ -295,7 +313,8 @@ export class AssistantAgent extends BaseAgent {
   /**
    * Actualiza el clientId en el registro Conversation cuando se identifica al cliente.
    */
-  async linkClientToConversation(phone: string, clientId: string): Promise<void> {
+  async linkClientToConversation(rawPhone: string, clientId: string): Promise<void> {
+    const phone = normalizePhone(rawPhone);
     const session = this.sessions.get(phone);
     if (!session) return;
 
@@ -327,7 +346,10 @@ export class AssistantAgent extends BaseAgent {
    * @param text   Contenido del mensaje
    * @returns      Respuesta de texto de Sofía
    */
-  async processMessage(phone: string, text: string): Promise<string> {
+  async processMessage(rawPhone: string, text: string): Promise<string> {
+    // Normalizar siempre — garantiza clave única en el Map sin importar el formato de Twilio
+    const phone = normalizePhone(rawPhone);
+
     // ── Lock: esperar si este número ya está siendo procesado ───────────────
     const LOCK_WAIT_MS    = 500;   // intervalo de reintento
     const LOCK_TIMEOUT_MS = 5000;  // máximo que esperamos antes de proceder igual
@@ -422,10 +444,12 @@ export class AssistantAgent extends BaseAgent {
    * @returns           Texto de respuesta (con prefijo "[Escuché tu mensaje de voz] ")
    */
   async processVoiceMessage(
-    phone: string,
+    rawPhone: string,
     audioBuffer: Buffer,
     mimeType: string,
   ): Promise<string> {
+    // Normalizar para que el audio use la misma clave de sesión que los mensajes de texto
+    const phone = normalizePhone(rawPhone);
     console.log(`[agent-assistant] Audio entrante de ${phone} (${mimeType}, ${audioBuffer.length} bytes)`);
 
     let transcript: string;

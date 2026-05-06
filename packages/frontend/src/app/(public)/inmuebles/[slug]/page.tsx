@@ -215,6 +215,11 @@ export default function PropertyDetailPage() {
 
   const property = data?.data?.data;
 
+  // Debug: verificar que el campo llega desde el API
+  if (property) {
+    console.log('property.virtualTourUrl:', property.virtualTourUrl);
+  }
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -282,6 +287,20 @@ export default function PropertyDetailPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Galería */}
               <Gallery photos={property.photos} title={property.title} />
+
+              {/* Link de video — visible debajo de la galería cuando hay URL */}
+              {property.virtualTourUrl && property.virtualTourUrl.trim() && (
+                <div className="mt-2">
+                  <a
+                    href={property.virtualTourUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-[#B8973E] hover:underline text-sm font-medium"
+                  >
+                    🎥 Ver video del inmueble
+                  </a>
+                </div>
+              )}
 
               {/* Título y ubicación */}
               <div>
@@ -444,6 +463,17 @@ export default function PropertyDetailPage() {
                     <Phone className="h-4 w-4" />
                     Llamar ahora
                   </a>
+
+                  {property.virtualTourUrl && property.virtualTourUrl.trim() && (
+                    <a
+                      href={property.virtualTourUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-[#B8973E] text-[#B8973E] font-medium rounded-lg hover:bg-[#B8973E] hover:text-white transition-colors"
+                    >
+                      🎥 Ver video del inmueble
+                    </a>
+                  )}
                 </div>
 
                 {/* Volver */}
