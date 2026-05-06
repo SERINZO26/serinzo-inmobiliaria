@@ -17,8 +17,10 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
     name: 'search_properties',
     description:
       'Busca inmuebles disponibles según las preferencias del cliente. ' +
-      'Devuelve máximo 3 opciones ordenadas por relevancia. ' +
-      'Usa esta tool cuando el cliente describa lo que busca.',
+      'Devuelve hasta 5 opciones ordenadas por relevancia. ' +
+      'Usa esta tool cuando el cliente describa lo que busca. ' +
+      'IMPORTANTE — tipos correctos: "apartaestudio" o "estudio" → type=APARTAMENTO con min_bedrooms=0. ' +
+      'Para múltiples zonas usa el campo zones[] en lugar de neighborhood.',
     input_schema: {
       type: 'object',
       properties: {
@@ -30,7 +32,8 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
         type: {
           type: 'string',
           enum: ['CASA', 'APARTAMENTO', 'LOCAL', 'OFICINA', 'LOTE', 'BODEGA', 'FINCA'],
-          description: 'Tipo de inmueble deseado',
+          description:
+            'Tipo de inmueble. "apartaestudio" y "estudio" deben mapearse a APARTAMENTO.',
         },
         city: {
           type: 'string',
@@ -38,11 +41,19 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
         },
         neighborhood: {
           type: 'string',
-          description: 'Barrio o zona preferida',
+          description: 'Barrio o zona preferida (una sola). Usa zones[] si el cliente mencionó varias.',
+        },
+        zones: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Lista de barrios o zonas preferidas (ej: ["Chico", "Santa Bárbara", "Usaquén"]). ' +
+            'Usa este campo cuando el cliente mencione más de una zona. ' +
+            'La búsqueda es insensible a mayúsculas y busca coincidencia parcial.',
         },
         budget_max: {
           type: 'number',
-          description: 'Presupuesto máximo en COP',
+          description: 'Presupuesto máximo en COP (ej: 5000000 para 5 millones)',
         },
         budget_min: {
           type: 'number',
@@ -50,11 +61,14 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
         },
         min_bedrooms: {
           type: 'number',
-          description: 'Número mínimo de habitaciones',
+          description:
+            'Número mínimo de habitaciones. Para apartaestudio usa 0. ' +
+            'NO enviar este campo si el cliente no especificó cantidad.',
         },
         min_bathrooms: {
           type: 'number',
-          description: 'Número mínimo de baños',
+          description:
+            'Número mínimo de baños. NO enviar si el cliente no lo especificó.',
         },
       },
     },

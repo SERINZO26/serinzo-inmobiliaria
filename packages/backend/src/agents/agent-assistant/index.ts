@@ -26,15 +26,20 @@ import { prisma } from '../../lib/prisma';
  * independientemente del formato en que llegue de Twilio.
  *
  *   "whatsapp:+573001234567" → "573001234567"
+ *   "WHATSAPP:+573001234567" → "573001234567"  (Twilio a veces mayúsculas)
  *   "+573001234567"          → "573001234567"
  *   "573001234567"           → "573001234567"
  *
- * Twilio no es consistente: a veces envía con '+', a veces sin él.
- * Sin esta normalización, el mismo cliente genera dos claves distintas
- * en el Map, creando dos sesiones paralelas y provocando doble saludo.
+ * Twilio no es consistente: envía con '+', sin '+', o con prefijo whatsapp: en
+ * distintas mayúsculas. Sin esta normalización el mismo cliente genera claves
+ * distintas en el Map → sesiones paralelas → doble saludo.
  */
 const normalizePhone = (phone: string): string =>
-  phone.replace('whatsapp:', '').replace(/\D/g, '');
+  phone
+    .toLowerCase()            // maneja WHATSAPP: y whatsapp:
+    .replace('whatsapp:', '') // elimina el prefijo de Twilio
+    .replace(/\D/g, '')       // elimina +, espacios, guiones y cualquier no-dígito
+    .trim();
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -375,6 +380,12 @@ export class AssistantAgent extends BaseAgent {
 
   /** Lógica interna de processMessage — llamar solo desde processMessage (con lock). */
   private async _processMessageInner(phone: string, text: string): Promise<string> {
+    // Diagnóstico de sesiones — confirma que el singleton persiste y la clave es consistente
+    console.log(`[agent-assistant] ── Mensaje entrante ──────────────────────────`);
+    console.log(`[agent-assistant] Phone normalizado : "${phone}"`);
+    console.log(`[agent-assistant] Sesiones activas  : [${[...this.sessions.keys()].join(', ') || 'ninguna'}]`);
+    console.log(`[agent-assistant] Sesión existente  : ${this.sessions.has(phone) ? 'SÍ' : 'NO — se creará nueva'}`);
+
     // Obtener sesión activa o restaurarla desde BD (últimas 24h)
     const session = (await this.getOrRestoreSession(phone)) ?? this.createNewSession(phone);
 

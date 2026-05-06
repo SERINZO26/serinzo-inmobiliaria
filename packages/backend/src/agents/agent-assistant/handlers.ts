@@ -32,14 +32,21 @@ const PUBLIC_PROPERTY_SELECT = {
 // ─── search_properties ────────────────────────────────────────────────────────
 
 export const handleSearchProperties: ToolHandler = async (input) => {
-  const { operation, type, city, neighborhood, budget_max, budget_min, min_bedrooms, min_bathrooms } = input as {
-    operation?: string; type?: string; city?: string; neighborhood?: string;
-    budget_max?: number; budget_min?: number; min_bedrooms?: number; min_bathrooms?: number;
+  const {
+    operation, type, city, neighborhood, zones,
+    budget_max, budget_min, min_bedrooms, min_bathrooms,
+  } = input as {
+    operation?: string; type?: string; city?: string;
+    neighborhood?: string; zones?: string[];
+    budget_max?: number; budget_min?: number;
+    min_bedrooms?: number; min_bathrooms?: number;
   };
 
-  console.log('[search_properties] params:', {
-    operation, type, city, neighborhood, budget_max, budget_min, min_bedrooms, min_bathrooms,
-  });
+  console.log('=== BÚSQUEDA DE INMUEBLES ===');
+  console.log('Parámetros recibidos:', JSON.stringify({
+    operation, type, city, neighborhood, zones,
+    budget_max, budget_min, min_bedrooms, min_bathrooms,
+  }, null, 2));
 
   const where: Record<string, unknown> = {
     status: 'DISPONIBLE',
@@ -47,9 +54,8 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     archived: false,
   };
 
-  // CRÍTICO: un inmueble "en arriendo" puede tener operation=ARRIENDO o VENTA_O_ARRIENDO.
-  // Filtrar solo por 'ARRIENDO' excluye todos los de operación mixta.
-  // Lo mismo aplica para VENTA. Siempre usar { in: [...] }.
+  // CRÍTICO: inmuebles en arriendo pueden tener operation=VENTA_O_ARRIENDO.
+  // Filtrar solo 'ARRIENDO' excluye todos los de operación mixta.
   if (operation) {
     if (operation === 'ARRIENDO') {
       where.operation = { in: ['ARRIENDO', 'VENTA_O_ARRIENDO'] };
@@ -58,33 +64,68 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     } else {
       where.operation = operation;
     }
+    console.log('Filtro operation:', where.operation);
   }
 
-  if (type) where.type = type;
-  // city siempre insensitive — "bogota" debe encontrar "Bogotá"
-  if (city) where.city = { contains: city, mode: 'insensitive' };
-  if (neighborhood) where.neighborhood = { contains: neighborhood, mode: 'insensitive' };
-  // Solo filtrar por habitaciones si el cliente lo especificó — NUNCA asumir valor mínimo
-  if (min_bedrooms != null && min_bedrooms > 0) where.bedrooms = { gte: min_bedrooms };
-  if (min_bathrooms != null && min_bathrooms > 0) where.bathrooms = { gte: min_bathrooms };
+  if (type) {
+    where.type = type;
+    console.log('Filtro tipo:', type);
+  }
+
+  // city siempre insensitive — "bogota" encuentra "Bogotá"
+  if (city) {
+    where.city = { contains: city, mode: 'insensitive' };
+    console.log('Filtro ciudad:', city);
+  }
+
+  // Soporte de múltiples zonas con OR + contains insensitive.
+  // "El Chico" encontrará tanto "Chico" como "El Chico Norte" en la BD.
+  // zones[] tiene prioridad sobre neighborhood (más preciso).
+  const activeZones = zones && zones.length > 0 ? zones : (neighborhood ? [neighborhood] : []);
+  if (activeZones.length > 0) {
+    where.OR = activeZones.map((zone) => ({
+      neighborhood: { contains: zone, mode: 'insensitive' },
+    }));
+    console.log('Filtro zonas (OR):', activeZones);
+  }
+
+  // Solo filtrar habitaciones si el cliente lo especificó. Para apartaestudio min_bedrooms=0.
+  if (min_bedrooms != null && min_bedrooms > 0) {
+    where.bedrooms = { gte: min_bedrooms };
+    console.log('Filtro habitaciones mínimas:', min_bedrooms);
+  }
+  if (min_bathrooms != null && min_bathrooms > 0) {
+    where.bathrooms = { gte: min_bathrooms };
+    console.log('Filtro baños mínimos:', min_bathrooms);
+  }
+
   if (budget_min || budget_max) {
     where.price = {
       ...(budget_min ? { gte: budget_min } : {}),
       ...(budget_max ? { lte: budget_max } : {}),
     };
+    console.log('Filtro precio:', where.price);
   }
+
+  console.log('WHERE clause completo:', JSON.stringify(where, null, 2));
 
   const properties = await prisma.property.findMany({
     where: where as any,
     select: PUBLIC_PROPERTY_SELECT,
     orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
-    take: 5, // aumentamos a 5 para dar más opciones al modelo
+    take: 5,
   });
 
-  console.log('[search_properties] results:', properties.length, 'inmuebles encontrados');
-  if (properties.length === 0) {
-    console.log('[search_properties] where clause:', JSON.stringify(where, null, 2));
-  }
+  console.log(`Resultados encontrados: ${properties.length}`);
+  console.log('Inmuebles:', properties.map(p => ({
+    title: p.title,
+    city: p.city,
+    neighborhood: p.neighborhood,
+    price: Number(p.price),
+    operation: p.operation,
+    status: p.status,
+  })));
+  console.log('=== FIN BÚSQUEDA ===');
 
   return {
     count: properties.length,
@@ -93,7 +134,7 @@ export const handleSearchProperties: ToolHandler = async (input) => {
       price: p.price, priceCurrency: p.priceCurrency, priceNegotiable: p.priceNegotiable,
       areaTotalM2: p.areaTotalM2, bedrooms: p.bedrooms, bathrooms: p.bathrooms,
       city: p.city, neighborhood: p.neighborhood, address: p.address,
-      photos: p.photos.slice(0, 1), // solo primera foto en la búsqueda
+      photos: p.photos.slice(0, 1),
       strata: p.strata, parking: p.parking, floor: p.floor,
     })),
   };
