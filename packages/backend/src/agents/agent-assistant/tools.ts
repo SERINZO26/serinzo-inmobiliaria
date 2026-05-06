@@ -171,6 +171,36 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
   },
 
   {
+    name: 'find_appointment',
+    description:
+      'Busca una cita existente por datos que el cliente conoce: nombre, teléfono, ' +
+      'nombre del inmueble o fecha aproximada. ' +
+      'SIEMPRE usa esta tool antes de reschedule_appointment o cancel_appointment. ' +
+      'NUNCA pidas el ID de la cita al cliente — úsala para encontrarlo internamente.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        client_name: {
+          type: 'string',
+          description: 'Nombre (o parte del nombre) del cliente',
+        },
+        client_phone: {
+          type: 'string',
+          description: 'Teléfono del cliente — se busca por los últimos 7 dígitos',
+        },
+        property_name: {
+          type: 'string',
+          description: 'Nombre o parte del nombre del inmueble',
+        },
+        approximate_date: {
+          type: 'string',
+          description: 'Fecha aproximada: "hoy", "mañana" o formato YYYY-MM-DD',
+        },
+      },
+    },
+  },
+
+  {
     name: 'reschedule_appointment',
     description: 'Reagenda una cita existente a una nueva fecha y hora.',
     input_schema: {

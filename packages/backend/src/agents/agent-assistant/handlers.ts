@@ -347,6 +347,92 @@ export const handleCancelAppointment: ToolHandler = async (input) => {
   return { success: true, message: 'Cita cancelada correctamente' };
 };
 
+// ─── find_appointment ─────────────────────────────────────────────────────────
+// Permite a Sofía buscar una cita por datos que el cliente conoce (nombre,
+// teléfono, inmueble, fecha) sin necesitar el ID técnico de la cita.
+
+export const handleFindAppointment: ToolHandler = async (input) => {
+  const { client_name, client_phone, property_name, approximate_date } = input as {
+    client_name?: string;
+    client_phone?: string;
+    property_name?: string;
+    approximate_date?: string;
+  };
+
+  const where: Record<string, unknown> = {
+    status: { notIn: ['CANCELADA'] },
+  };
+
+  // Filtrar por datos del cliente
+  if (client_name || client_phone) {
+    const clientWhere: Record<string, unknown> = {};
+    if (client_name) {
+      clientWhere.name = { contains: client_name, mode: 'insensitive' };
+    }
+    if (client_phone) {
+      // Buscar por los últimos 7 dígitos para tolerar diferentes formatos
+      const digits = client_phone.replace(/\D/g, '').slice(-7);
+      if (digits.length >= 7) {
+        clientWhere.phone = { contains: digits };
+      }
+    }
+    where.client = clientWhere;
+  }
+
+  // Filtrar por nombre del inmueble
+  if (property_name) {
+    where.property = { title: { contains: property_name, mode: 'insensitive' } };
+  }
+
+  // Filtrar por fecha aproximada
+  if (approximate_date) {
+    const now = new Date();
+    let targetDate: Date;
+    if (approximate_date === 'hoy') {
+      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (approximate_date === 'mañana') {
+      targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    } else {
+      targetDate = new Date(approximate_date);
+    }
+    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(new Date(startOfDay).setHours(23, 59, 59, 999));
+    where.scheduledAt = { gte: startOfDay, lte: endOfDay };
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where: where as any,
+    include: {
+      client:   { select: { name: true, phone: true } },
+      property: { select: { title: true, city: true, neighborhood: true } },
+      agent:    { select: { name: true } },
+    },
+    orderBy: { scheduledAt: 'asc' },
+    take: 5,
+  });
+
+  if (appointments.length === 0) {
+    return {
+      found: false,
+      message: 'No encontré citas con esos datos. Puedes intentar con otro nombre, inmueble o fecha.',
+    };
+  }
+
+  return {
+    found: true,
+    count: appointments.length,
+    appointments: appointments.map((a) => ({
+      id:           a.id,
+      client:       a.client.name,
+      property:     `${a.property.title} (${a.property.neighborhood ?? a.property.city})`,
+      date:         a.scheduledAt.toLocaleString('es-CO', { dateStyle: 'full', timeStyle: 'short' }),
+      date_iso:     a.scheduledAt.toISOString(),
+      status:       a.status,
+      agent:        a.agent.name,
+    })),
+  };
+};
+
 // ─── flag_special_case ────────────────────────────────────────────────────────
 
 export const handleFlagSpecialCase: ToolHandler = async (input) => {
@@ -576,6 +662,7 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   get_property_detail:    handleGetPropertyDetail,
   send_property_media:    handleSendPropertyMedia,
   check_availability:     handleCheckAvailability,
+  find_appointment:       handleFindAppointment,
   schedule_appointment:   handleScheduleAppointment,
   reschedule_appointment: handleRescheduleAppointment,
   cancel_appointment:     handleCancelAppointment,
