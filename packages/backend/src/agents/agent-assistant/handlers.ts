@@ -108,6 +108,9 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     ? [rawZones]
     : [];
 
+  console.log('zonesArray construido:', JSON.stringify(zonesNorm));
+  console.log('neighborhood recibido:', neighborhood);
+
   // Zonas activas: zones[] tiene prioridad sobre neighborhood.
   const activeZones = zonesNorm.length > 0 ? zonesNorm : (neighborhood ? [neighborhood] : []);
 
@@ -161,7 +164,7 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     console.log('Filtro precio:', where.price);
   }
 
-  console.log('WHERE clause completo:', JSON.stringify(where, null, 2));
+  console.log('WHERE con zonas (FINAL):', JSON.stringify(where, null, 2));
 
   const properties = await prisma.property.findMany({
     where: where as any,
@@ -214,10 +217,18 @@ export const handleGetPropertyDetail: ToolHandler = async (input) => {
 export const handleSendPropertyMedia: ToolHandler = async (input) => {
   const { client_phone, property_id } = input as { client_phone: string; property_id: string };
 
+  console.log('=== SEND_PROPERTY_MEDIA ===');
+  console.log('Params recibidos:', JSON.stringify(input, null, 2));
+  console.log('client_phone:', client_phone);
+  console.log('property_id:', property_id);
+
   const property = await prisma.property.findUnique({
     where: { id: property_id },
-    select: { photos: true, title: true },
+    select: { id: true, title: true, photos: true },
   });
+
+  console.log('Inmueble encontrado:', property ? `"${property.title}" (id: ${property.id})` : 'NO ENCONTRADO');
+  console.log('Fotos en BD:', property?.photos ?? []);
 
   if (!property) return { error: 'Inmueble no encontrado' };
 
