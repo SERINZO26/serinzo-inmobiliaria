@@ -111,33 +111,25 @@ export const handleSearchProperties: ToolHandler = async (input) => {
   // Zonas activas: zones[] tiene prioridad sobre neighborhood.
   const activeZones = zonesNorm.length > 0 ? zonesNorm : (neighborhood ? [neighborhood] : []);
 
-  // Ciudad + zonas → AND(city, OR(zonas)).
-  // Solo zonas → OR(neighborhood, address) para máxima cobertura.
-  // Solo ciudad → contains city insensitive.
-  if (city && activeZones.length > 0) {
-    where.AND = [
-      { city: { contains: city, mode: 'insensitive' as const } },
-      {
-        OR: activeZones.map((zone) => ({
-          neighborhood: { contains: zone, mode: 'insensitive' as const },
-        })),
-      },
-    ];
-    console.log('Filtro ciudad+zonas (AND+OR):', city, activeZones);
-  } else if (activeZones.length > 0) {
-    // Buscar zona también en address por si el barrio está en la dirección
-    where.OR = [
-      ...activeZones.map((zone) => ({
-        neighborhood: { contains: zone, mode: 'insensitive' as const },
-      })),
-      ...activeZones.map((zone) => ({
-        address: { contains: zone, mode: 'insensitive' as const },
-      })),
-    ];
-    console.log('Filtro zonas (OR neighborhood+address):', activeZones);
+  // CRÍTICO: si hay zonas específicas, filtrar SOLO por esas zonas usando AND.
+  // Usar OR a nivel raíz causaba que resultados de otras zonas se colaran.
+  // La estructura AND([OR(zonas en neighborhood|address)][, city]) garantiza
+  // que TODOS los resultados pertenezcan a alguna de las zonas pedidas.
+  if (activeZones.length > 0) {
+    const zonaOR = {
+      OR: activeZones.flatMap((zone) => [
+        { neighborhood: { contains: zone, mode: 'insensitive' as const } },
+        { address:      { contains: zone, mode: 'insensitive' as const } },
+      ]),
+    };
+    where.AND = city
+      ? [zonaOR, { city: { contains: city, mode: 'insensitive' as const } }]
+      : [zonaOR];
+    console.log('Filtro zonas (AND+OR):', activeZones, city ? `ciudad: ${city}` : '');
   } else if (city) {
+    // Solo ciudad, sin zona específica — buscar en toda la ciudad
     where.city = { contains: city, mode: 'insensitive' as const };
-    console.log('Filtro ciudad:', city);
+    console.log('Filtro ciudad (sin zona):', city);
   }
 
   // Solo filtrar habitaciones si el cliente lo especificó. Para apartaestudio min_bedrooms=0.
