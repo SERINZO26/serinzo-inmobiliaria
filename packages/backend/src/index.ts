@@ -20,6 +20,8 @@ import { saleRouter } from './api/contracts/sale-router';
 import { settingsRouter } from './api/settings/router';
 import { whatsappWebhookRouter } from './api/webhooks/whatsapp';
 import { initScheduler } from './services/scheduler';
+import { requireAuth } from './lib/auth';
+import { assistantAgent } from './agents/agent-assistant';
 
 const app = express();
 
@@ -50,6 +52,20 @@ app.use('/api/v1/settings', settingsRouter);
 
 // Webhooks externos (sin autenticación JWT — validados por firma de Twilio)
 app.use('/api/v1/webhooks/whatsapp', whatsappWebhookRouter);
+
+// ── Endpoints de diagnóstico (solo en desarrollo o con auth) ─────────────────
+// DELETE /api/v1/debug/session/:phone — elimina sesión en memoria de Sofía
+app.delete('/api/v1/debug/session/:phone', requireAuth, (req: Request, res: Response) => {
+  const phone = req.params.phone;
+  const existed = assistantAgent.clearSession(phone);
+  res.json({ success: true, phone, existed, message: existed ? 'Sesión eliminada' : 'No había sesión activa' });
+});
+
+// GET /api/v1/debug/sessions — lista sesiones activas en memoria
+app.get('/api/v1/debug/sessions', requireAuth, (_req: Request, res: Response) => {
+  const sessions = assistantAgent.listSessions();
+  res.json({ success: true, count: sessions.length, sessions });
+});
 
 // 404 para rutas desconocidas
 app.use((req, res) => {

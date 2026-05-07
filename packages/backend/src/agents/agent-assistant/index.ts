@@ -254,6 +254,24 @@ export class AssistantAgent extends BaseAgent {
     return session;
   }
 
+  /** Elimina la sesión en memoria de un número (para testing o soporte). */
+  clearSession(phone: string): boolean {
+    const normalized = normalizePhone(phone);
+    const existed = this.sessions.has(normalized);
+    this.sessions.delete(normalized);
+    console.log(`[agent-assistant] clearSession: ${normalized} — ${existed ? 'eliminada' : 'no existía'}`);
+    return existed;
+  }
+
+  /** Lista las sesiones activas (para diagnóstico). */
+  listSessions(): { phone: string; messages: number; lastActivity: string }[] {
+    return [...this.sessions.entries()].map(([phone, s]) => ({
+      phone,
+      messages:     s.messages.length,
+      lastActivity: s.lastActivity.toISOString(),
+    }));
+  }
+
   private cleanExpiredSessions() {
     const now = Date.now();
     for (const [phone, session] of this.sessions) {

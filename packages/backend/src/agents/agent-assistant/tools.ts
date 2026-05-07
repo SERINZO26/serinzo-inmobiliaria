@@ -16,61 +16,64 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
   {
     name: 'search_properties',
     description:
-      'Busca inmuebles disponibles según las preferencias del cliente. ' +
-      'Devuelve hasta 5 opciones ordenadas por relevancia. ' +
-      'Usa esta tool cuando el cliente describa lo que busca. ' +
-      'IMPORTANTE — tipos correctos: "apartaestudio" o "estudio" → type=APARTAMENTO con min_bedrooms=0. ' +
-      'Para múltiples zonas usa el campo zones[] en lugar de neighborhood.',
+      'Busca inmuebles disponibles. SIEMPRE incluir zones cuando el cliente mencione un barrio. ' +
+      'Si omites zones, aparecerán inmuebles de zonas equivocadas. ' +
+      'Si no hay zona específica, enviar zones: []. ' +
+      'apartaestudio/estudio → type=APARTAMENTO, min_bedrooms=0.',
     input_schema: {
       type: 'object',
       properties: {
+        zones: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'OBLIGATORIO. Array con variaciones del nombre del barrio mencionado por el cliente. ' +
+            'Si no hay zona específica, enviar []. ' +
+            'Ejemplos: ' +
+            '"Chico" → ["chico","Chico","El Chico"] | ' +
+            '"Santa Bárbara" → ["santa barbara","Santa Barbara","Santa Bárbara"] | ' +
+            '"Chapinero" → ["chapinero","Chapinero"] | ' +
+            '"Laureles" → ["laureles","Laureles"] | ' +
+            '"Poblado" → ["poblado","Poblado","El Poblado"]. ' +
+            'Incluir variaciones garantiza búsqueda sin importar tildes ni mayúsculas.',
+        },
+        city: {
+          type: 'string',
+          description:
+            'Ciudad inferida del barrio: Chico/Chapinero/Usaquén/Suba/Kennedy → Bogotá. ' +
+            'Laureles/El Poblado/Envigado → Medellín. Omitir si no se conoce.',
+        },
         operation: {
           type: 'string',
           enum: ['VENTA', 'ARRIENDO', 'VENTA_O_ARRIENDO'],
-          description: 'Tipo de operación que busca el cliente',
+          description: 'Tipo de operación. Omitir si el cliente no lo especificó.',
         },
         type: {
           type: 'string',
           enum: ['CASA', 'APARTAMENTO', 'LOCAL', 'OFICINA', 'LOTE', 'BODEGA', 'FINCA'],
           description:
-            'Tipo de inmueble. "apartaestudio" y "estudio" deben mapearse a APARTAMENTO.',
-        },
-        city: {
-          type: 'string',
-          description: 'Ciudad de búsqueda (ej: Bogotá, Medellín)',
-        },
-        neighborhood: {
-          type: 'string',
-          description: 'Barrio o zona preferida (una sola). Usa zones[] si el cliente mencionó varias.',
-        },
-        zones: {
-          type: 'array',
-          items: { type: 'string' },
-          description:
-            'Lista de barrios o zonas preferidas (ej: ["Chico", "Santa Bárbara", "Usaquén"]). ' +
-            'Usa este campo cuando el cliente mencione más de una zona. ' +
-            'La búsqueda es insensible a mayúsculas y busca coincidencia parcial.',
+            'Tipo de inmueble. apartaestudio/estudio → APARTAMENTO.',
         },
         budget_max: {
           type: 'number',
-          description: 'Presupuesto máximo en COP (ej: 5000000 para 5 millones)',
+          description: 'Presupuesto máximo en COP. "5 millones" = 5000000.',
         },
         budget_min: {
           type: 'number',
-          description: 'Presupuesto mínimo en COP',
+          description: 'Presupuesto mínimo en COP.',
         },
         min_bedrooms: {
           type: 'number',
           description:
-            'Número mínimo de habitaciones. Para apartaestudio usa 0. ' +
-            'NO enviar este campo si el cliente no especificó cantidad.',
+            'Habitaciones mínimas. Para apartaestudio = 0. ' +
+            'NO enviar si el cliente no especificó cantidad.',
         },
         min_bathrooms: {
           type: 'number',
-          description:
-            'Número mínimo de baños. NO enviar si el cliente no lo especificó.',
+          description: 'Baños mínimos. NO enviar si el cliente no lo especificó.',
         },
       },
+      required: ['zones'],
     },
   },
 
