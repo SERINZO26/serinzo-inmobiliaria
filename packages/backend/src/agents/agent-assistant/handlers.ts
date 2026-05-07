@@ -42,11 +42,32 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     min_bedrooms?: number; min_bathrooms?: number;
   };
 
-  console.log('=== BÚSQUEDA DE INMUEBLES ===');
-  console.log('Parámetros recibidos:', JSON.stringify({
+  console.log('==========================================');
+  console.log('SEARCH_PROPERTIES LLAMADO');
+  console.log('Params:', JSON.stringify({
     operation, type, city, neighborhood, zones,
     budget_max, budget_min, min_bedrooms, min_bathrooms,
   }, null, 2));
+
+  // ── DIAGNÓSTICO: cuántos inmuebles hay publicados en total (sin filtros de búsqueda)
+  const totalPublicados = await prisma.property.count({
+    where: { published: true, archived: false },
+  });
+  console.log('Total inmuebles publicados en BD (sin filtros):', totalPublicados);
+
+  // ── DIAGNÓSTICO: dump de TODOS los inmuebles publicados para comparar con filtros
+  const todosPublicados = await prisma.property.findMany({
+    where: { published: true, archived: false },
+    select: {
+      title: true, neighborhood: true, city: true,
+      price: true, operation: true, status: true, type: true,
+    },
+    take: 20,
+  });
+  console.log('Inmuebles publicados en BD:');
+  todosPublicados.forEach((p) => {
+    console.log(`  - "${p.title}" | barrio:"${p.neighborhood}" | ciudad:"${p.city}" | precio:${Number(p.price)} | op:${p.operation} | status:${p.status} | tipo:${p.type}`);
+  });
 
   // Siempre filtrar solo publicados y disponibles
   const where: Record<string, unknown> = {
