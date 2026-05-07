@@ -99,8 +99,17 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     console.log('Filtro tipo:', tipoNorm);
   }
 
+  // Normalizar zones: el modelo puede enviarla como string o como array.
+  // Siempre trabajar con un array para el resto de la lógica.
+  const rawZones = zones as string | string[] | undefined;
+  const zonesNorm: string[] = Array.isArray(rawZones)
+    ? rawZones
+    : rawZones
+    ? [rawZones]
+    : [];
+
   // Zonas activas: zones[] tiene prioridad sobre neighborhood.
-  const activeZones = zones && zones.length > 0 ? zones : (neighborhood ? [neighborhood] : []);
+  const activeZones = zonesNorm.length > 0 ? zonesNorm : (neighborhood ? [neighborhood] : []);
 
   // Ciudad + zonas → AND(city, OR(zonas)).
   // Solo zonas → OR(neighborhood, address) para máxima cobertura.
