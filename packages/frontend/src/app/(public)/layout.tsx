@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { MessageCircle, Menu, X } from 'lucide-react';
+import { MessageCircle, Menu, X, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
@@ -53,8 +53,17 @@ function Header() {
           ))}
         </nav>
 
-        {/* WhatsApp button + hamburguesa */}
+        {/* Acceso panel + WhatsApp + hamburguesa */}
         <div className="flex items-center gap-3">
+          {/* Acceso panel — solo visible en desktop */}
+          <Link
+            href="/login"
+            className="hidden md:flex items-center gap-2 px-4 py-2 border border-[#B8973E] text-[#B8973E] rounded-lg hover:bg-[#B8973E] hover:text-white transition font-medium text-sm"
+          >
+            <LogIn className="h-4 w-4" />
+            Acceso panel
+          </Link>
+
           <a
             href={WA_URL}
             target="_blank"
@@ -94,6 +103,14 @@ function Header() {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/login"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-[#B8973E] hover:bg-amber-50 rounded-lg border border-[#B8973E]"
+          >
+            <LogIn className="h-4 w-4" />
+            Acceso panel
+          </Link>
           <a
             href={WA_URL}
             target="_blank"
