@@ -25,6 +25,9 @@ export default function NuevaVentaPage() {
     salePrice:    '',
     commissionPct:'3',
     promiseDate:  '',
+    sellerName:   '',
+    sellerPhone:  '',
+    sellerEmail:  '',
     notes:        '',
   });
   const [propSearch,   setPropSearch]   = useState('');
@@ -95,6 +98,9 @@ export default function NuevaVentaPage() {
         commissionPct: commPct || undefined,
         promiseDate:   form.promiseDate || undefined,
         status:        'EN_PROCESO',
+        sellerName:    form.sellerName  || undefined,
+        sellerPhone:   form.sellerPhone || undefined,
+        sellerEmail:   form.sellerEmail || undefined,
         notes:         form.notes || undefined,
       });
       const newId = res.data.data.id;
@@ -228,6 +234,33 @@ export default function NuevaVentaPage() {
               <input type="date" value={form.promiseDate} onChange={(e) => set('promiseDate', e.target.value)}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
+
+            {/* Datos del vendedor */}
+            <div className="border-t border-slate-100 pt-4 space-y-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Datos del vendedor (propietario)</p>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">Nombre del vendedor</label>
+                <input type="text" value={form.sellerName} onChange={(e) => set('sellerName', e.target.value)}
+                  placeholder="Nombre completo del propietario que vende"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1">Teléfono</label>
+                  <input type="tel" value={form.sellerPhone} onChange={(e) => set('sellerPhone', e.target.value)}
+                    placeholder="Ej: 3001234567"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 block mb-1">Email</label>
+                  <input type="email" value={form.sellerEmail} onChange={(e) => set('sellerEmail', e.target.value)}
+                    placeholder="vendedor@email.com"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 italic">Estos datos son confidenciales y no se muestran al comprador.</p>
           </CardContent>
         </Card>
 

@@ -28,7 +28,11 @@ interface Filtros {
   maxPrice: string;
   minBedrooms: string;
   minBathrooms: string;
-  minParking: string;
+  parking: string;        // 'con' | 'sin' | ''
+  strata: string[];       // ['1','2',...]
+  minAge: string;
+  maxAge: string;
+  features: string[];     // características internas y amenidades
   sortBy: string;
 }
 
@@ -44,7 +48,18 @@ const TIPO_OPTS = [
 
 const HABITACIONES = ['1', '2', '3', '4', '5'];
 const BANOS       = ['1', '2', '3'];
-const PARQUEADEROS = ['1', '2'];
+
+const STRATA_OPTS = ['1', '2', '3', '4', '5', '6'];
+
+const AGE_RANGES = [
+  { label: '0 – 5 años',   min: '0',  max: '5'  },
+  { label: '6 – 15 años',  min: '6',  max: '15' },
+  { label: '16 – 30 años', min: '16', max: '30' },
+  { label: '+30 años',     min: '31', max: ''   },
+];
+
+const INTERIOR_FEATURES = ['Estudio', 'Cuarto de servicio', 'Chimenea', 'Terraza', 'Balcón'];
+const AMENIDADES = ['Piscina', 'BBQ', 'Gimnasio', 'Salón comunal', 'Parque infantil', 'Ascensor', 'Coworking', 'Depósito'];
 
 const PAGE_SIZE = 9;
 
@@ -67,6 +82,28 @@ function FilterPanel({
       : [...filtros.types, type];
     onChange({ types });
   };
+  const toggleStrata = (s: string) => {
+    const strata = filtros.strata.includes(s)
+      ? filtros.strata.filter((x) => x !== s)
+      : [...filtros.strata, s];
+    onChange({ strata });
+  };
+  const toggleFeature = (f: string) => {
+    const features = filtros.features.includes(f)
+      ? filtros.features.filter((x) => x !== f)
+      : [...filtros.features, f];
+    onChange({ features });
+  };
+  const setAgeRange = (min: string, max: string) => {
+    // Toggle off if same range already selected
+    if (filtros.minAge === min && filtros.maxAge === max) {
+      onChange({ minAge: '', maxAge: '' });
+    } else {
+      onChange({ minAge: min, maxAge: max });
+    }
+  };
+  const isAgeSelected = (min: string, max: string) =>
+    filtros.minAge === min && filtros.maxAge === max;
 
   return (
     <div className="space-y-6">
@@ -198,25 +235,111 @@ function FilterPanel({
         </div>
       </div>
 
-      {/* Parqueaderos */}
+      {/* Parqueadero */}
       <div>
         <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
-          Parqueaderos
+          Parqueadero
         </Label>
-        <div className="flex gap-1.5 flex-wrap">
-          {PARQUEADEROS.map((n) => (
+        <div className="flex gap-2">
+          {[{ value: 'con', label: 'Con parqueadero' }, { value: 'sin', label: 'Sin parqueadero' }].map((opt) => (
             <button
-              key={n}
-              onClick={() => onChange({ minParking: filtros.minParking === n ? '' : n })}
+              key={opt.value}
+              onClick={() => onChange({ parking: filtros.parking === opt.value ? '' : opt.value })}
               className={cn(
-                'h-9 w-9 rounded-lg text-sm font-semibold border transition-colors',
-                filtros.minParking === n
+                'flex-1 py-2 rounded-lg text-xs font-medium border transition-colors',
+                filtros.parking === opt.value
                   ? 'bg-slate-800 text-white border-slate-800'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
               )}
             >
-              {n === '2' ? '2+' : n}
+              {opt.label}
             </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Estrato */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Estrato
+        </Label>
+        <div className="flex gap-1.5 flex-wrap">
+          {STRATA_OPTS.map((s) => (
+            <button
+              key={s}
+              onClick={() => toggleStrata(s)}
+              className={cn(
+                'h-9 w-9 rounded-lg text-sm font-semibold border transition-colors',
+                filtros.strata.includes(s)
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Antigüedad */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Antigüedad
+        </Label>
+        <div className="space-y-1.5">
+          {AGE_RANGES.map((r) => (
+            <button
+              key={r.label}
+              onClick={() => setAgeRange(r.min, r.max)}
+              className={cn(
+                'w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors',
+                isAgeSelected(r.min, r.max)
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+              )}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Características internas */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Características
+        </Label>
+        <div className="space-y-1.5">
+          {INTERIOR_FEATURES.map((f) => (
+            <label key={f} className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={filtros.features.includes(f)}
+                onChange={() => toggleFeature(f)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-600 group-hover:text-slate-900">{f}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Amenidades / zonas comunes */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Zonas comunes
+        </Label>
+        <div className="space-y-1.5">
+          {AMENIDADES.map((f) => (
+            <label key={f} className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={filtros.features.includes(f)}
+                onChange={() => toggleFeature(f)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-600 group-hover:text-slate-900">{f}</span>
+            </label>
           ))}
         </div>
       </div>
@@ -244,15 +367,19 @@ function InmueblesContent() {
 
   // Inicializar filtros desde URL params
   const [filtros, setFiltros] = useState<Filtros>({
-    operation: searchParams.get('operation') ?? '',
-    types: searchParams.get('type') ? [searchParams.get('type')!] : [],
-    city: searchParams.get('city') ?? '',
-    minPrice: searchParams.get('minPrice') ?? '',
-    maxPrice: searchParams.get('maxPrice') ?? '',
+    operation:   searchParams.get('operation') ?? '',
+    types:       searchParams.get('type') ? [searchParams.get('type')!] : [],
+    city:        searchParams.get('city') ?? '',
+    minPrice:    searchParams.get('minPrice') ?? '',
+    maxPrice:    searchParams.get('maxPrice') ?? '',
     minBedrooms: searchParams.get('minBedrooms') ?? '',
-    minBathrooms: searchParams.get('minBathrooms') ?? '',
-    minParking: searchParams.get('minParking') ?? '',
-    sortBy: searchParams.get('sortBy') ?? 'newest',
+    minBathrooms:searchParams.get('minBathrooms') ?? '',
+    parking:     searchParams.get('parking') ?? '',
+    strata:      searchParams.get('strata') ? searchParams.get('strata')!.split(',') : [],
+    minAge:      searchParams.get('minAge') ?? '',
+    maxAge:      searchParams.get('maxAge') ?? '',
+    features:    searchParams.get('features') ? searchParams.get('features')!.split(',') : [],
+    sortBy:      searchParams.get('sortBy') ?? 'newest',
   });
 
   // Filtros aplicados (los que se usan en la query)
@@ -265,15 +392,19 @@ function InmueblesContent() {
       status: 'DISPONIBLE',
     };
     if (f.operation) params.operation = f.operation;
-    if (f.types.length === 1) params.type = f.types[0];
-    if (f.city.trim()) params.city = f.city.trim();
-    if (f.minPrice) params.minPrice = f.minPrice;
-    if (f.maxPrice) params.maxPrice = f.maxPrice;
-    if (f.minBedrooms)  params.minBedrooms  = f.minBedrooms;
-    if (f.minBathrooms) params.minBathrooms = f.minBathrooms;
-    if (f.minParking)   params.minParking   = f.minParking;
-    if (f.sortBy === 'price_asc') params.sortBy = 'price_asc';
-    if (f.sortBy === 'price_desc') params.sortBy = 'price_desc';
+    if (f.types.length === 1)  params.type  = f.types[0];
+    if (f.types.length > 1)    params.types = f.types.join(',');
+    if (f.city.trim())         params.city  = f.city.trim();
+    if (f.minPrice)     params.minPrice    = f.minPrice;
+    if (f.maxPrice)     params.maxPrice    = f.maxPrice;
+    if (f.minBedrooms)  params.minBedrooms = f.minBedrooms;
+    if (f.minBathrooms) params.minBathrooms= f.minBathrooms;
+    if (f.parking)      params.parking     = f.parking;
+    if (f.strata.length > 0)   params.strata    = f.strata.join(',');
+    if (f.minAge)       params.minAge      = f.minAge;
+    if (f.maxAge)       params.maxAge      = f.maxAge;
+    if (f.features.length > 0) params.features  = f.features.join(',');
+    if (f.sortBy !== 'newest')  params.sortBy    = f.sortBy;
     return params;
   }, []);
 
@@ -294,14 +425,19 @@ function InmueblesContent() {
 
     // Actualizar URL
     const params = new URLSearchParams();
-    if (filtros.operation) params.set('operation', filtros.operation);
-    if (filtros.types[0]) params.set('type', filtros.types[0]);
-    if (filtros.city) params.set('city', filtros.city);
-    if (filtros.minPrice) params.set('minPrice', filtros.minPrice);
-    if (filtros.maxPrice) params.set('maxPrice', filtros.maxPrice);
-    if (filtros.minBedrooms)  params.set('minBedrooms',  filtros.minBedrooms);
-    if (filtros.minBathrooms) params.set('minBathrooms', filtros.minBathrooms);
-    if (filtros.minParking)   params.set('minParking',   filtros.minParking);
+    if (filtros.operation)     params.set('operation',   filtros.operation);
+    if (filtros.types.length === 1) params.set('type', filtros.types[0]);
+    if (filtros.types.length > 1)   params.set('types', filtros.types.join(','));
+    if (filtros.city)          params.set('city',        filtros.city);
+    if (filtros.minPrice)      params.set('minPrice',    filtros.minPrice);
+    if (filtros.maxPrice)      params.set('maxPrice',    filtros.maxPrice);
+    if (filtros.minBedrooms)   params.set('minBedrooms', filtros.minBedrooms);
+    if (filtros.minBathrooms)  params.set('minBathrooms',filtros.minBathrooms);
+    if (filtros.parking)       params.set('parking',     filtros.parking);
+    if (filtros.strata.length) params.set('strata',      filtros.strata.join(','));
+    if (filtros.minAge)        params.set('minAge',      filtros.minAge);
+    if (filtros.maxAge)        params.set('maxAge',      filtros.maxAge);
+    if (filtros.features.length) params.set('features',  filtros.features.join(','));
     if (filtros.sortBy !== 'newest') params.set('sortBy', filtros.sortBy);
     router.push(`/inmuebles?${params.toString()}`, { scroll: false });
   };
@@ -315,7 +451,11 @@ function InmueblesContent() {
       maxPrice: '',
       minBedrooms: '',
       minBathrooms: '',
-      minParking: '',
+      parking: '',
+      strata: [],
+      minAge: '',
+      maxAge: '',
+      features: [],
       sortBy: 'newest',
     };
     setFiltros(empty);

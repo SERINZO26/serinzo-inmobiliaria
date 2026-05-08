@@ -28,6 +28,16 @@ blogRouter.get('/', asyncHandler(async (req, res) => {
   return success(res, posts);
 }));
 
+// ── GET /api/v1/blog/admin/:id — un post para edición (requireAuth) ───────────
+blogRouter.get('/admin/:id', requireAuth, asyncHandler(async (req, res) => {
+  const post = await prisma.blogPost.findUnique({
+    where:   { id: req.params.id },
+    include: { author: { select: { name: true } } },
+  });
+  if (!post) return notFound(res, 'Artículo no encontrado');
+  return success(res, post);
+}));
+
 // ── GET /api/v1/blog/admin — todos (requireAuth) — DEBE IR ANTES de /:slug ────
 blogRouter.get('/admin', requireAuth, asyncHandler(async (req, res) => {
   const page  = parseInt(String(req.query.page  ?? '1'));

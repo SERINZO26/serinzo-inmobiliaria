@@ -21,27 +21,32 @@ function generatePayments(
   endDate: Date,
   monthlyRent: number,
   commissionPct: number | null,
+  adminFee: number | null = null,
+  guarantorFee: number | null = null,
 ): Prisma.RentalPaymentCreateManyInput[] {
   const payments: Prisma.RentalPaymentCreateManyInput[] = [];
   const current = new Date(startDate);
   let period = 1;
 
   while (current <= endDate) {
-    const commission =
-      commissionPct !== null ? (monthlyRent * commissionPct) / 100 : null;
+    const commission  = commissionPct !== null ? (monthlyRent * commissionPct) / 100 : null;
+    const adminFeeAmt = adminFee ?? 0;
+    const guarFeeAmt  = guarantorFee ?? 0;
     const ownerPayment =
-      commission !== null ? monthlyRent - commission : null;
+      commission !== null
+        ? monthlyRent - commission - adminFeeAmt - guarFeeAmt
+        : null;
 
     payments.push({
       contractId,
       periodNumber: period,
-      dueDate: new Date(current),
-      amount: new Prisma.Decimal(monthlyRent),
-      commission: commission !== null ? new Prisma.Decimal(commission) : null,
+      dueDate:      new Date(current),
+      amount:       new Prisma.Decimal(monthlyRent),
+      commission:   commission !== null ? new Prisma.Decimal(commission) : null,
       ownerPayment: ownerPayment !== null ? new Prisma.Decimal(ownerPayment) : null,
+      guarantorFee: new Prisma.Decimal(guarFeeAmt),
     });
 
-    // Avanzar exactamente un mes manteniendo el día
     current.setMonth(current.getMonth() + 1);
     period++;
   }
@@ -64,6 +69,10 @@ const createRentalSchema = z.object({
   depositCurrency: z.string().default('COP'),
   commissionPct: z.number().min(0).max(100).optional(),
   notes: z.string().optional(),
+  // Afianzadora
+  hasGuarantor:  z.boolean().optional(),
+  guarantorFee:  z.number().nonnegative().optional(),
+  guarantorName: z.string().optional(),
 });
 
 const editRentalSchema = createRentalSchema.partial().omit({ propertyId: true, clientId: true });
@@ -123,7 +132,7 @@ rentalRouter.get(
 );
 
 // ─── GET /api/v1/contracts/arriendos/alerts ───────────────────────────────────
-// Contratos activos que vencen en los próximos N días (default 105 días = ~15 semanas).
+// Contratos activos que vencen en los próximos N días (default 112 días = ~16 semanas).
 // Montado ANTES de /:id para que Express no lo interprete como un ID.
 
 rentalRouter.get(
@@ -131,7 +140,7 @@ rentalRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const user    = req.user!;
-    const weeks   = parseInt((req.query.weeks as string) || '15', 10);
+    const weeks   = parseInt((req.query.weeks as string) || '16', 10);
     const horizon = new Date();
     horizon.setDate(horizon.getDate() + weeks * 7);
 
@@ -283,16 +292,21 @@ rentalRouter.post(
           commissionPct:   data.commissionPct   != null ? new Prisma.Decimal(data.commissionPct)   : undefined,
           status:          RentalContractStatus.ACTIVO,
           notes:           data.notes,
+          hasGuarantor:    data.hasGuarantor  ?? false,
+          guarantorFee:    data.guarantorFee  != null ? new Prisma.Decimal(data.guarantorFee)  : undefined,
+          guarantorName:   data.guarantorName ?? undefined,
         },
       });
 
-      // Generar cuotas mensuales automáticamente
+      // Generar cuotas mensuales automáticamente (incluye descuento de afianzadora)
       const payments = generatePayments(
         created.id,
         data.startDate,
         data.endDate,
         data.monthlyRent,
         data.commissionPct ?? null,
+        data.adminFee     ?? null,
+        data.guarantorFee ?? null,
       );
 
       await tx.rentalPayment.createMany({ data: payments });

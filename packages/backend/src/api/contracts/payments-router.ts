@@ -302,6 +302,11 @@ paymentsRouter.patch(
       ? new Prisma.Decimal(ownerBase - repairAmount)
       : existing.ownerPayment;
 
+    // Fecha de pago del arrendatario (opcional, viene como string YYYY-MM-DD)
+    const tenantPaymentDate = req.body.tenantPaymentDate
+      ? new Date(req.body.tenantPaymentDate)
+      : undefined;
+
     const updated = await prisma.rentalPayment.update({
       where: { id: existing.id },
       data: {
@@ -313,6 +318,7 @@ paymentsRouter.patch(
         ...(repairDescription && { repairDescription }),
         ...(req.body.notes && { notes: req.body.notes }),
         ...(receiptUrl && { receiptUrl }),
+        ...(tenantPaymentDate && { tenantPaymentDate }),
       },
     });
 

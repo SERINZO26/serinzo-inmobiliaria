@@ -247,6 +247,9 @@ export interface SaleContract {
   status: SaleStatus;
   pdfUrl: string | null;
   notes: string | null;
+  sellerName: string | null;
+  sellerPhone: string | null;
+  sellerEmail: string | null;
   createdAt: string;
   updatedAt: string;
   property?: { id: string; title: string; address: string; city: string; photos: string[] };
@@ -604,6 +607,95 @@ export const settingsApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } },
     );
   },
+};
+
+// ─── Projects ────────────────────────────────────────────────────────────────
+
+export type ProjectStatus = 'EN_PREVENTA' | 'EN_CONSTRUCCION' | 'PROXIMO_LANZAMIENTO';
+
+export interface Project {
+  id: string;
+  title: string;
+  description: string | null;
+  slug: string;
+  location: string;
+  department: string | null;
+  priceFrom: number;
+  deliveryDate: string | null;
+  status: ProjectStatus;
+  photos: string[];
+  contactPhone: string | null;
+  contactEmail: string | null;
+  featured: boolean;
+  published: boolean;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const projectsApi = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get<ApiResponse<Project[]>>('/api/v1/projects', { params }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<Project>>(`/api/v1/projects/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    api.post<ApiResponse<Project>>('/api/v1/projects', data),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<Project>>(`/api/v1/projects/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete<ApiResponse<{ message: string }>>(`/api/v1/projects/${id}`),
+
+  uploadPhotos: (id: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append('photos', f));
+    return api.patch<ApiResponse<{ photos: string[]; added: string[] }>>(
+      `/api/v1/projects/${id}/photos`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
+
+  deletePhoto: (id: string, photoUrl: string) =>
+    api.delete<ApiResponse<{ photos: string[] }>>(`/api/v1/projects/${id}/photos`, {
+      data: { photoUrl },
+    }),
+};
+
+// ─── Blog ─────────────────────────────────────────────────────────────────────
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string;
+  coverImageUrl: string | null;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+  authorId: string | null;
+  author?: { name: string };
+}
+
+export const blogApi = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get<ApiResponse<BlogPost[]>>('/api/v1/blog/admin', { params }),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<BlogPost>>(`/api/v1/blog/admin/${id}`),
+
+  create: (data: Record<string, unknown>) =>
+    api.post<ApiResponse<BlogPost>>('/api/v1/blog', data),
+
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<BlogPost>>(`/api/v1/blog/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete<ApiResponse<{ message: string }>>(`/api/v1/blog/${id}`),
 };
 
 // ─── Conversations ────────────────────────────────────────────────────────────

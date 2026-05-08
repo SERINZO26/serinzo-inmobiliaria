@@ -23,11 +23,16 @@ export default function NuevoArriendoPage() {
     agentId:         session?.user?.id ?? '',
     startDate:       '',
     durationMonths:  12,
+    durationCustom:  '',    // valor cuando se elige "Otro"
     monthlyRent:     '',
     commissionPct:   '10',
     adminFee:        '',
     depositAmount:   '',
     notes:           '',
+    // Afianzadora
+    hasGuarantor:    false,
+    guarantorName:   '',
+    guarantorFee:    '',
   });
 
   const [clientSearch, setClientSearch] = useState('');
@@ -52,21 +57,27 @@ export default function NuevoArriendoPage() {
     enabled: isAdmin,
   });
 
+  // Duración efectiva (puede ser valor del select o ingresado manualmente)
+  const effectiveDuration = form.durationMonths === -1
+    ? (Number(form.durationCustom) || 0)
+    : form.durationMonths;
+
   // Fecha de fin calculada automáticamente
   const endDate = useMemo(() => {
-    if (!form.startDate) return '';
+    if (!form.startDate || !effectiveDuration) return '';
     const d = new Date(form.startDate);
-    d.setMonth(d.getMonth() + Number(form.durationMonths));
+    d.setMonth(d.getMonth() + effectiveDuration);
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
-  }, [form.startDate, form.durationMonths]);
+  }, [form.startDate, effectiveDuration]);
 
   // Calculadora en tiempo real
-  const rent       = Number(form.monthlyRent) || 0;
-  const commPct    = Number(form.commissionPct) || 0;
-  const commission = rent > 0 && commPct > 0 ? (rent * commPct) / 100 : 0;
-  const adminFee   = Number(form.adminFee) || 0;
-  const propietario = rent - commission - adminFee;
+  const rent         = Number(form.monthlyRent) || 0;
+  const commPct      = Number(form.commissionPct) || 0;
+  const commission   = rent > 0 && commPct > 0 ? (rent * commPct) / 100 : 0;
+  const adminFee     = Number(form.adminFee) || 0;
+  const guarantorFee = form.hasGuarantor ? (Number(form.guarantorFee) || 0) : 0;
+  const propietario  = rent - commission - adminFee - guarantorFee;
 
   // Filtros de búsqueda
   const filteredProps    = (propsData ?? []).filter(p =>
@@ -105,6 +116,10 @@ export default function NuevoArriendoPage() {
         adminFee:      adminFee || undefined,
         depositAmount: Number(form.depositAmount) || undefined,
         notes:         form.notes || undefined,
+        // Afianzadora
+        hasGuarantor:  form.hasGuarantor,
+        guarantorName: form.hasGuarantor && form.guarantorName ? form.guarantorName : undefined,
+        guarantorFee:  form.hasGuarantor && guarantorFee > 0 ? guarantorFee : undefined,
       });
       router.push(`/admin/arriendos/${res.data.data.id}`);
     } catch (err: unknown) {
@@ -233,10 +248,21 @@ export default function NuevoArriendoPage() {
                   onChange={(e) => set('durationMonths', Number(e.target.value))}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  {[6, 12, 18, 24, 36].map((m) => (
+                  {[3, 6, 9, 12, 18, 24].map((m) => (
                     <option key={m} value={m}>{m} meses</option>
                   ))}
+                  <option value={-1}>Otro…</option>
                 </select>
+                {form.durationMonths === -1 && (
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.durationCustom}
+                    onChange={(e) => set('durationCustom', e.target.value)}
+                    placeholder="Ingresa el número de meses"
+                    className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                )}
               </div>
             </div>
 
@@ -288,6 +314,54 @@ export default function NuevoArriendoPage() {
               </div>
             </div>
 
+            {/* Afianzadora */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, hasGuarantor: !f.hasGuarantor }))}
+                className="flex items-center justify-between w-full"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-800 text-left">¿Este contrato tiene afianzadora?</p>
+                  <p className="text-xs text-slate-400 text-left">Empresa que garantiza el pago del arriendo</p>
+                </div>
+                <div className={cn(
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0',
+                  form.hasGuarantor ? 'bg-green-500' : 'bg-slate-200',
+                )}>
+                  <span className={cn(
+                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                    form.hasGuarantor ? 'translate-x-6' : 'translate-x-1',
+                  )} />
+                </div>
+              </button>
+              {form.hasGuarantor && (
+                <div className="space-y-3 pt-1 border-t border-slate-100">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Nombre de la afianzadora</label>
+                    <input
+                      type="text"
+                      value={form.guarantorName}
+                      onChange={(e) => set('guarantorName', e.target.value)}
+                      placeholder="Ej: Seguros Bolívar"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Valor mensual afianzadora (COP)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.guarantorFee}
+                      onChange={(e) => set('guarantorFee', e.target.value)}
+                      placeholder="Ej: 50000"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Calculadora en tiempo real */}
             {rent > 0 && (
               <div className="bg-slate-50 rounded-xl p-4 space-y-1.5 text-sm font-mono">
@@ -305,6 +379,12 @@ export default function NuevoArriendoPage() {
                   <div className="flex justify-between text-slate-500">
                     <span>Administración</span>
                     <span>- {formatPrice(adminFee, 'COP')}</span>
+                  </div>
+                )}
+                {guarantorFee > 0 && (
+                  <div className="flex justify-between text-slate-500">
+                    <span>Afianzadora</span>
+                    <span>- {formatPrice(guarantorFee, 'COP')}</span>
                   </div>
                 )}
                 <div className="border-t border-slate-200 pt-1.5 flex justify-between font-bold text-green-700">

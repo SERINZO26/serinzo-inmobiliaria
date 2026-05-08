@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Building2,
+  Building,
   Users,
   CalendarCheck,
   MessageSquare,
@@ -20,6 +21,7 @@ import {
   FileText,
   DollarSign,
   Bell,
+  BookOpen,
 } from 'lucide-react';
 import { rentalApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -34,6 +36,8 @@ const navItems = [
   { href: '/admin/citas',          label: 'Citas',          icon: CalendarCheck,   roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
   { href: '/admin/arriendos',      label: 'Arriendos',      icon: FileText,        roles: ['ADMIN', 'AGENT', 'ASSISTANT'], badge: 'arriendos' },
   { href: '/admin/ventas',         label: 'Ventas',         icon: DollarSign,      roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/proyectos',      label: 'Proyectos',      icon: Building,        roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
+  { href: '/admin/blog',           label: 'Blog',           icon: BookOpen,        roles: ['ADMIN', 'AGENT'] },
   { href: '/admin/conversaciones', label: 'Conversaciones', icon: MessageSquare,   roles: ['ADMIN', 'AGENT', 'ASSISTANT'] },
   { href: '/admin/equipo',         label: 'Equipo',         icon: UserCog,         roles: ['ADMIN'] },
   { href: '/admin/configuracion',  label: 'Configuración',  icon: Settings,        roles: ['ADMIN'] },

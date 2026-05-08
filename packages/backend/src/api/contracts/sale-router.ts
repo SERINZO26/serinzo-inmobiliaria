@@ -35,6 +35,10 @@ const createSaleSchema = z.object({
   registrationDate: z.string().transform((v) => new Date(v)).optional(),
   status:           z.nativeEnum(SaleStatus).default(SaleStatus.BORRADOR),
   notes:            z.string().optional(),
+  // Datos del vendedor (propietario que vende)
+  sellerName:       z.string().optional(),
+  sellerPhone:      z.string().optional(),
+  sellerEmail:      z.string().email().optional(),
 });
 
 const editSaleSchema = createSaleSchema.partial().omit({ propertyId: true, clientId: true });
@@ -160,6 +164,9 @@ saleRouter.post(
           registrationDate: data.registrationDate,
           status:           data.status,
           notes:            data.notes,
+          sellerName:       data.sellerName,
+          sellerPhone:      data.sellerPhone,
+          sellerEmail:      data.sellerEmail,
         },
       });
 
@@ -237,6 +244,9 @@ saleRouter.put(
           ...(data.registrationDate && { registrationDate: data.registrationDate }),
           ...(data.status           != null && { status:           data.status }),
           ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.sellerName  !== undefined && { sellerName:  data.sellerName }),
+          ...(data.sellerPhone !== undefined && { sellerPhone: data.sellerPhone }),
+          ...(data.sellerEmail !== undefined && { sellerEmail: data.sellerEmail }),
         },
       });
 

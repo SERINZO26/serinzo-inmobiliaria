@@ -92,7 +92,14 @@ propertiesRouter.get(
       status: PropertyStatus.DISPONIBLE,
     };
 
-    if (req.query.type) where.type = req.query.type as PropertyType;
+    // Tipo: acepta uno (type=CASA) o varios (types=CASA,APARTAMENTO)
+    if (req.query.types) {
+      const ts = (req.query.types as string).split(',').filter(Boolean) as PropertyType[];
+      if (ts.length > 0) where.type = { in: ts };
+    } else if (req.query.type) {
+      where.type = req.query.type as PropertyType;
+    }
+
     if (req.query.operation) where.operation = req.query.operation as Operation;
     if (req.query.city)
       where.city = { contains: req.query.city as string, mode: 'insensitive' };
@@ -105,16 +112,44 @@ propertiesRouter.get(
     if (req.query.minParking)
       where.parking = { gte: parseInt(req.query.minParking as string, 10) };
 
+    // Estrato (1-6, puede ser múltiple: strata=1,2,3)
+    if (req.query.strata) {
+      const strataVals = (req.query.strata as string).split(',').map(Number).filter((n) => !isNaN(n) && n > 0);
+      if (strataVals.length > 0) where.strata = { in: strataVals };
+    }
+
+    // Antigüedad en años
+    const ageFilter: Prisma.IntNullableFilter = {};
+    if (req.query.minAge) ageFilter.gte = parseInt(req.query.minAge as string, 10);
+    if (req.query.maxAge) ageFilter.lte = parseInt(req.query.maxAge as string, 10);
+    if (Object.keys(ageFilter).length) where.ageYears = ageFilter;
+
+    // Parqueadero: 'con' = al menos 1, 'sin' = 0
+    if (req.query.parking === 'con') where.parking = { gte: 1 };
+    else if (req.query.parking === 'sin') where.parking = { equals: 0 };
+
+    // Características (features y zonas comunes): nombres separados por coma
+    if (req.query.features) {
+      const featureNames = (req.query.features as string).split(',').filter(Boolean);
+      if (featureNames.length > 0)
+        where.features = { some: { name: { in: featureNames } } };
+    }
+
     const priceFilter: Prisma.DecimalFilter = {};
     if (req.query.minPrice) priceFilter.gte = parseFloat(req.query.minPrice as string);
     if (req.query.maxPrice) priceFilter.lte = parseFloat(req.query.maxPrice as string);
     if (Object.keys(priceFilter).length) where.price = priceFilter;
 
+    // Ordenamiento
+    let orderBy: Prisma.PropertyOrderByWithRelationInput[] = [{ featured: 'desc' }, { createdAt: 'desc' }];
+    if (req.query.sortBy === 'price_asc')  orderBy = [{ price: 'asc' }];
+    if (req.query.sortBy === 'price_desc') orderBy = [{ price: 'desc' }];
+
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
         where,
         select: PUBLIC_SELECT,
-        orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
       }),

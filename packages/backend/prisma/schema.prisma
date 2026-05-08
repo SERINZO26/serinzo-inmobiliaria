@@ -563,6 +563,10 @@ model RentalContract {
   notes            String?
   // Usado por el scheduler para no enviar alertas duplicadas el mismo día
   lastAlertSentAt  DateTime?
+  // Afianzadora (descuento mensual variable)
+  hasGuarantor     Boolean              @default(false)
+  guarantorFee     Decimal?             // valor mensual fijo a descontar
+  guarantorName    String?              // nombre de la afianzadora
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -594,8 +598,12 @@ model RentalPayment {
   repairDescription String?
   status       PaymentStatus @default(PENDIENTE)
   // URL del comprobante subido a Cloudinary
-  receiptUrl   String?
-  notes        String?
+  receiptUrl          String?
+  notes               String?
+  // Fecha en que el arrendatario realizó su pago (opcional, la llena el agente)
+  tenantPaymentDate   DateTime?
+  // Descuento de afianzadora para este mes (copiado del contrato al crear el pago)
+  guarantorFee        Decimal   @default(0)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -623,6 +631,10 @@ model SaleContract {
   status           SaleStatus @default(BORRADOR)
   pdfUrl           String?
   notes            String?
+  // Datos del vendedor (propietario que vende)
+  sellerName       String?
+  sellerPhone      String?
+  sellerEmail      String?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 

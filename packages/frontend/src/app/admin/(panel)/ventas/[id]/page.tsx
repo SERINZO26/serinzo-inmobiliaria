@@ -256,6 +256,41 @@ export default function VentaDetallePage() {
           </CardContent>
         </Card>
 
+        {/* Datos del vendedor */}
+        {(c.sellerName || c.sellerPhone || c.sellerEmail) && (
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-3"><CardTitle className="text-base">Datos del vendedor</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {c.sellerName && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Nombre</span>
+                  <span className="text-slate-700 font-medium">{c.sellerName}</span>
+                </div>
+              )}
+              {c.sellerPhone && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Teléfono</span>
+                  <a href={`https://wa.me/${c.sellerPhone.replace(/\D/g,'')}`}
+                    target="_blank" rel="noreferrer"
+                    className="text-green-600 hover:underline flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" />
+                    {c.sellerPhone}
+                  </a>
+                </div>
+              )}
+              {c.sellerEmail && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Email</span>
+                  <a href={`mailto:${c.sellerEmail}`} className="text-blue-600 hover:underline">
+                    {c.sellerEmail}
+                  </a>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 italic pt-1">Datos confidenciales — no visibles para el comprador</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Estado — avanzar */}
         {c.status !== 'CANCELADO' && c.status !== 'REGISTRADO' && (
           <Card className="border-0 shadow-sm">

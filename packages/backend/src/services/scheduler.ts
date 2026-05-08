@@ -21,7 +21,7 @@ import { sendEmail, sendWhatsAppText } from './messaging';
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 /** Semanas de anticipación para alertar sobre vencimiento de contrato */
-const ALERT_WEEKS = 15;
+const ALERT_WEEKS = 16;
 
 /** Días de aviso antes del vencimiento donde la alerta se considera "urgente" */
 const URGENT_DAYS = 30;
@@ -437,10 +437,11 @@ async function remindExpiringContractsWeekly(): Promise<void> {
   const now = new Date();
 
   // Ventanas de días que corresponden a los hitos (inclusive)
+  // Hitos: 16 semanas, 13 semanas, 1 semana
   const milestones = [
-    { label: '14-15 semanas', min: 98, max: 105 },
-    { label: '7-8 semanas',   min: 49, max: 56  },
-    { label: '0-1 semanas',   min: 0,  max: 7   },
+    { label: '16 semanas', min: 112, max: 119 },
+    { label: '13 semanas', min: 91,  max: 98  },
+    { label: '1 semana',   min: 0,   max: 7   },
   ];
 
   try {

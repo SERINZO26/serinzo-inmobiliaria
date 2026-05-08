@@ -1,11 +1,21 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
 import { ProjectStatus } from '../../lib/generated/prisma';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAdmin, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
+import { uploadMultipleImages } from '../../services/storage';
 
 export const projectsRouter = Router();
+
+const uploadPhotos = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
+  },
+});
 
 // ── Validación ────────────────────────────────────────────────────────────────
 
@@ -88,6 +98,32 @@ projectsRouter.put('/:id', requireAgentOrAdmin, asyncHandler(async (req, res) =>
   });
   return success(res, project);
 }));
+
+// ── PATCH /api/v1/projects/:id/photos — subir fotos ──────────────────────────
+projectsRouter.patch(
+  '/:id/photos',
+  requireAgentOrAdmin,
+  uploadPhotos.array('photos', 10),
+  asyncHandler(async (req, res) => {
+    const project = await prisma.project.findUnique({ where: { id: req.params.id } });
+    if (!project || project.archived) return notFound(res, 'Proyecto');
+
+    const files = req.files as Express.Multer.File[];
+    if (!files?.length) return error(res, 'No se enviaron fotos', 400);
+
+    const results = await uploadMultipleImages(
+      files,
+      `projects/${req.params.id}`,
+    );
+    const newUrls = results.map((r) => r.url);
+
+    const updated = await prisma.project.update({
+      where: { id: req.params.id },
+      data:  { photos: [...project.photos, ...newUrls] },
+    });
+    return success(res, { photos: updated.photos, added: newUrls });
+  }),
+);
 
 // ── DELETE /api/v1/projects/:id — archivar (requireAdmin) ─────────────────────
 projectsRouter.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {

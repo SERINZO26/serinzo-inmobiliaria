@@ -65,6 +65,7 @@ function ModalPago({
   const [hasRepair,         setHasRepair]        = useState(false);
   const [repairAmountStr,   setRepairAmountStr]  = useState('');
   const [repairDescription, setRepairDescription] = useState('');
+  const [tenantPaymentDate, setTenantPaymentDate] = useState('');
   const [busy,              setBusy]             = useState(false);
   const [err,               setErr]              = useState('');
 
@@ -92,6 +93,7 @@ function ModalPago({
       const form = new FormData();
       if (file)  form.append('comprobante', file);
       if (notes) form.append('notes', notes);
+      if (tenantPaymentDate) form.append('tenantPaymentDate', tenantPaymentDate);
       if (hasRepair && repairAmt > 0) {
         form.append('repairAmount', String(repairAmt));
         if (repairDescription) form.append('repairDescription', repairDescription);
@@ -223,6 +225,19 @@ function ModalPago({
                 <p className="text-xs text-slate-500">Arrastra el comprobante o haz clic · PDF, JPG, PNG · máx 5 MB</p>
               </div>
             )}
+          </div>
+
+          {/* ── Fecha de pago del arrendatario ── */}
+          <div>
+            <label className="text-sm font-medium text-slate-700 block mb-1">
+              Fecha en que pagó el arrendatario <span className="text-slate-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="date"
+              value={tenantPaymentDate}
+              onChange={(e) => setTenantPaymentDate(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
           </div>
 
           {/* ── Notas ── */}
@@ -395,14 +410,6 @@ async function generatePdfResumen(
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
   doc.text(`${c.property?.address ?? ''}, ${c.property?.city ?? ''}`, 20, headerY + 12);
-
-  doc.setFontSize(8);
-  doc.text('ARRENDATARIO', 120, headerY);
-  doc.setTextColor(30, 41, 59);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(c.client?.name ?? '–', 120, headerY + 6);
-  doc.setFont('helvetica', 'normal');
 
   headerY += 22;
   doc.setDrawColor(226, 232, 240);
