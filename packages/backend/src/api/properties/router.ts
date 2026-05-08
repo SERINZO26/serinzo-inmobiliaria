@@ -124,9 +124,13 @@ propertiesRouter.get(
     if (req.query.maxAge) ageFilter.lte = parseInt(req.query.maxAge as string, 10);
     if (Object.keys(ageFilter).length) where.ageYears = ageFilter;
 
-    // Parqueadero: 'con' = al menos 1, 'sin' = 0
-    if (req.query.parking === 'con') where.parking = { gte: 1 };
-    else if (req.query.parking === 'sin') where.parking = { equals: 0 };
+    // Parqueadero: 0 = exactamente 0, 1/2/3 = mínimo N parqueaderos
+    if (req.query.parking !== undefined && req.query.parking !== '') {
+      const parkingVal = parseInt(req.query.parking as string, 10);
+      if (!isNaN(parkingVal)) {
+        where.parking = parkingVal === 0 ? { equals: 0 } : { gte: parkingVal };
+      }
+    }
 
     // Características (features y zonas comunes): nombres separados por coma
     if (req.query.features) {

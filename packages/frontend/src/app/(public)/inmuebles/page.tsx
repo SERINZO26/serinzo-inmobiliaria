@@ -28,7 +28,7 @@ interface Filtros {
   maxPrice: string;
   minBedrooms: string;
   minBathrooms: string;
-  parking: string;        // 'con' | 'sin' | ''
+  parking: string;        // '0' | '1' | '2' | '3' | ''
   strata: string[];       // ['1','2',...]
   minAge: string;
   maxAge: string;
@@ -235,18 +235,23 @@ function FilterPanel({
         </div>
       </div>
 
-      {/* Parqueadero */}
+      {/* Parqueaderos */}
       <div>
         <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
-          Parqueadero
+          Parqueaderos
         </Label>
-        <div className="flex gap-2">
-          {[{ value: 'con', label: 'Con parqueadero' }, { value: 'sin', label: 'Sin parqueadero' }].map((opt) => (
+        <div className="flex gap-1.5 flex-wrap">
+          {[
+            { value: '0', label: '0'  },
+            { value: '1', label: '1'  },
+            { value: '2', label: '2'  },
+            { value: '3', label: '3+' },
+          ].map((opt) => (
             <button
               key={opt.value}
               onClick={() => onChange({ parking: filtros.parking === opt.value ? '' : opt.value })}
               className={cn(
-                'flex-1 py-2 rounded-lg text-xs font-medium border transition-colors',
+                'h-9 w-9 rounded-lg text-sm font-semibold border transition-colors',
                 filtros.parking === opt.value
                   ? 'bg-slate-800 text-white border-slate-800'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
@@ -399,7 +404,7 @@ function InmueblesContent() {
     if (f.maxPrice)     params.maxPrice    = f.maxPrice;
     if (f.minBedrooms)  params.minBedrooms = f.minBedrooms;
     if (f.minBathrooms) params.minBathrooms= f.minBathrooms;
-    if (f.parking)      params.parking     = f.parking;
+    if (f.parking !== '') params.parking    = f.parking;
     if (f.strata.length > 0)   params.strata    = f.strata.join(',');
     if (f.minAge)       params.minAge      = f.minAge;
     if (f.maxAge)       params.maxAge      = f.maxAge;
