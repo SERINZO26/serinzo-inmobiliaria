@@ -134,6 +134,11 @@ export default function HomePage() {
           </div>
           <div className="max-w-3xl mx-auto">
             <HeroSearch />
+            <div className="text-center mt-4">
+              <Link href="/simulador" className="text-white/80 hover:text-white text-sm underline underline-offset-4 transition-colors">
+                Simula tu crédito hipotecario →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -216,6 +221,24 @@ export default function HomePage() {
               <Link href="/inmuebles">Ver todos los inmuebles</Link>
             </Button>
           </div>
+        </div>
+      </section>
+
+      {/* ── Proyectos sobre planos — CTA dorado ──────────────────────────── */}
+      <section style={{ background: '#B8973E' }} className="py-16 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            ¿Buscas invertir sobre planos?
+          </h2>
+          <p className="text-white/90 text-lg mb-8">
+            Conoce nuestros proyectos de vivienda nueva con condiciones especiales de preventa
+          </p>
+          <Link
+            href="/proyectos"
+            className="inline-block bg-white text-[#B8973E] font-bold px-8 py-4 rounded-lg hover:bg-gray-100 transition text-lg shadow-lg"
+          >
+            Ver proyectos disponibles →
+          </Link>
         </div>
       </section>
 
@@ -338,19 +361,6 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── Proyectos sobre planos CTA ────────────────────────────────────── */}
-      <section className="py-14" style={{ background: '#B8973E' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <h2 className="text-3xl font-bold mb-3">¿Buscas invertir sobre planos?</h2>
-          <p className="text-white/90 mb-8 max-w-xl mx-auto text-lg">
-            Conoce nuestros proyectos de vivienda nueva con condiciones especiales
-          </p>
-          <Button asChild size="lg" className="bg-white text-[#B8973E] hover:bg-slate-100 font-bold text-base shadow-lg">
-            <Link href="/proyectos">Ver proyectos disponibles</Link>
-          </Button>
         </div>
       </section>
 

@@ -8,11 +8,12 @@ import { MessageCircle, Menu, X, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
-  { href: '/',          label: 'Inicio' },
-  { href: '/inmuebles', label: 'Inmuebles' },
-  { href: '/proyectos', label: 'Proyectos' },
-  { href: '/blog',      label: 'Blog' },
-  { href: '/contacto',  label: 'Contacto' },
+  { href: '/',           label: 'Inicio' },
+  { href: '/inmuebles',  label: 'Inmuebles' },
+  { href: '/proyectos',  label: 'Proyectos' },
+  { href: '/blog',       label: 'Blog' },
+  { href: '/simulador',  label: 'Simulador' },
+  { href: '/contacto',   label: 'Contacto' },
 ];
 
 const WA_NUMBER = '573182063924';
