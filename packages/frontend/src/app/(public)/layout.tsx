@@ -11,9 +11,9 @@ const NAV_LINKS = [
   { href: '/',           label: 'Inicio' },
   { href: '/inmuebles',  label: 'Inmuebles' },
   { href: '/proyectos',  label: 'Proyectos' },
-  { href: '/blog',       label: 'Blog' },
   { href: '/simulador',  label: 'Simulador' },
   { href: '/contacto',   label: 'Contacto' },
+  { href: '/blog',       label: 'Blog' },
 ];
 
 const WA_NUMBER = '573182063924';
