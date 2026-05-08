@@ -233,7 +233,7 @@ export default function HomePage() {
               {
                 Icon:  Shield,
                 title: 'Tu inmueble en buenas manos',
-                desc:  'Nos encargamos de administrar tu inmueble garantizando rentabilidad, pagos puntuales y la tranquilidad de contar con pólizas respaldadas por aseguradoras líderes. Con nosotros, tu patrimonio está siempre protegido.',
+                desc:  'Contamos con el respaldo de aseguradoras y afianzadoras líderes del mercado, garantizando seguridad y tranquilidad en cada contrato.',
               },
               {
                 Icon:  BadgeCheck,
@@ -338,6 +338,19 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Proyectos sobre planos CTA ────────────────────────────────────── */}
+      <section className="py-14" style={{ background: '#B8973E' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+          <h2 className="text-3xl font-bold mb-3">¿Buscas invertir sobre planos?</h2>
+          <p className="text-white/90 mb-8 max-w-xl mx-auto text-lg">
+            Conoce nuestros proyectos de vivienda nueva con condiciones especiales
+          </p>
+          <Button asChild size="lg" className="bg-white text-[#B8973E] hover:bg-slate-100 font-bold text-base shadow-lg">
+            <Link href="/proyectos">Ver proyectos disponibles</Link>
+          </Button>
         </div>
       </section>
 

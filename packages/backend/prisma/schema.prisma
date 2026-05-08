@@ -155,6 +155,12 @@ enum LogStatus {
   ERROR
 }
 
+enum ProjectStatus {
+  EN_PREVENTA
+  EN_CONSTRUCCION
+  PROXIMO_LANZAMIENTO
+}
+
 enum RentalContractStatus {
   BORRADOR
   ACTIVO
@@ -203,6 +209,7 @@ model User {
   campaigns         Campaign[]           @relation("CampaignCreator")
   rentalContracts   RentalContract[]     @relation("ContractAgent")
   saleContracts     SaleContract[]       @relation("SaleContractAgent")
+  blogPosts         BlogPost[]
 
   @@map("users")
 }
@@ -651,4 +658,51 @@ model Settings {
   updatedAt      DateTime @updatedAt
 
   @@map("settings")
+}
+
+// ─── PROYECTOS SOBRE PLANOS ────────────────────────────────────────────────────
+
+model Project {
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  slug         String        @unique
+  location     String
+  department   String?
+  priceFrom    Decimal
+  deliveryDate DateTime?
+  status       ProjectStatus @default(EN_PREVENTA)
+  photos       String[]
+  contactPhone String?
+  contactEmail String?
+  featured     Boolean       @default(false)
+  published    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  archived     Boolean       @default(false)
+
+  @@index([published, archived])
+  @@index([status])
+  @@map("projects")
+}
+
+// ─── BLOG ──────────────────────────────────────────────────────────────────────
+
+model BlogPost {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  excerpt       String?
+  content       String
+  coverImageUrl String?
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  authorId      String?
+
+  author User? @relation(fields: [authorId], references: [id])
+
+  @@index([published])
+  @@index([slug])
+  @@map("blog_posts")
 }

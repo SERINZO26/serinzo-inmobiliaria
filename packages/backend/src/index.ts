@@ -19,6 +19,8 @@ import { rentalRouter } from './api/contracts/rental-router';
 import { saleRouter } from './api/contracts/sale-router';
 import { settingsRouter } from './api/settings/router';
 import { whatsappWebhookRouter } from './api/webhooks/whatsapp';
+import { projectsRouter } from './api/projects/router';
+import { blogRouter } from './api/blog/router';
 import { initScheduler } from './services/scheduler';
 import { requireAuth } from './lib/auth';
 import { assistantAgent } from './agents/agent-assistant';
@@ -49,6 +51,8 @@ app.use('/api/v1/conversations', conversationsRouter);
 app.use('/api/v1/contracts/arriendos', rentalRouter);
 app.use('/api/v1/contracts/ventas', saleRouter);
 app.use('/api/v1/settings', settingsRouter);
+app.use('/api/v1/projects', projectsRouter);
+app.use('/api/v1/blog', blogRouter);
 
 // Webhooks externos (sin autenticación JWT — validados por firma de Twilio)
 app.use('/api/v1/webhooks/whatsapp', whatsappWebhookRouter);
