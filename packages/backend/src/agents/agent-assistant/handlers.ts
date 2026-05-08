@@ -32,6 +32,8 @@ const PUBLIC_PROPERTY_SELECT = {
 // ─── search_properties ────────────────────────────────────────────────────────
 
 export const handleSearchProperties: ToolHandler = async (input) => {
+  console.log('🔍 SEARCH PARAMS:', JSON.stringify(input));
+
   const {
     operation, type, city, neighborhood, zones,
     budget_max, budget_min, min_bedrooms, min_bathrooms,
@@ -215,6 +217,8 @@ export const handleGetPropertyDetail: ToolHandler = async (input) => {
 // ─── send_property_media ──────────────────────────────────────────────────────
 
 export const handleSendPropertyMedia: ToolHandler = async (input) => {
+  console.log('📸 SEND PHOTOS params:', JSON.stringify(input));
+
   const { client_phone, property_id } = input as { client_phone: string; property_id: string };
 
   console.log('=== SEND_PROPERTY_MEDIA ===');
@@ -227,6 +231,9 @@ export const handleSendPropertyMedia: ToolHandler = async (input) => {
     select: { id: true, title: true, photos: true },
   });
 
+  console.log('📸 Inmueble:', property?.title);
+  console.log('📸 Fotos en BD:', property?.photos);
+  console.log('📸 Cliente phone:', client_phone);
   console.log('Inmueble encontrado:', property ? `"${property.title}" (id: ${property.id})` : 'NO ENCONTRADO');
   console.log('Fotos en BD:', property?.photos ?? []);
 
