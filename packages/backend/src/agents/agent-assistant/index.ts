@@ -421,8 +421,18 @@ export class AssistantAgent extends BaseAgent {
     // Construir handlers con conversationId inyectado en log_conversation_summary
     // (para que actualice el registro existente en lugar de crear uno nuevo)
     const conversationId = session.conversationId;
+    // Teléfono en formato E.164 para send_property_media — Claude no tiene acceso
+    // al número completo del remitente, así que lo inyectamos desde la sesión.
+    const clientPhoneE164 = `+${phone}`;
     const baseHandlers = {
       ...TOOL_HANDLERS,
+      send_property_media: async (input: unknown) => {
+        // Sobreescribir client_phone con el teléfono real de la sesión,
+        // independientemente de lo que Claude haya enviado (puede llegar "+57" o vacío).
+        const corrected = { ...(input as object), client_phone: clientPhoneE164 };
+        console.log(`📸 client_phone corregido a: ${clientPhoneE164}`);
+        return TOOL_HANDLERS.send_property_media(corrected);
+      },
       log_conversation_summary: async (input: unknown) => {
         const result = await handleLogConversationSummary(input, conversationId);
 

@@ -27,15 +27,26 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
           type: 'array',
           items: { type: 'string' },
           description:
-            'OBLIGATORIO. Array con variaciones del nombre del barrio mencionado por el cliente. ' +
-            'Si no hay zona específica, enviar []. ' +
+            'CRÍTICO: cuando el cliente mencione un barrio específico, este array NUNCA puede ' +
+            'estar vacío. Incluir variaciones del nombre para búsqueda insensible a tildes/mayúsculas. ' +
+            '❌ INCORRECTO — cliente dice "El Chico" → zones: [] (NUNCA hagas esto). ' +
+            '✅ CORRECTO   — cliente dice "El Chico" → zones: ["chico","Chico","El Chico"]. ' +
+            'Solo enviar [] cuando el cliente NO mencionó ningún barrio. ' +
             'Ejemplos: ' +
             '"Chico" → ["chico","Chico","El Chico"] | ' +
             '"Santa Bárbara" → ["santa barbara","Santa Barbara","Santa Bárbara"] | ' +
             '"Chapinero" → ["chapinero","Chapinero"] | ' +
             '"Laureles" → ["laureles","Laureles"] | ' +
-            '"Poblado" → ["poblado","Poblado","El Poblado"]. ' +
-            'Incluir variaciones garantiza búsqueda sin importar tildes ni mayúsculas.',
+            '"Poblado" → ["poblado","Poblado","El Poblado"] | ' +
+            '"Usaquén" → ["usaquen","Usaquén","Usaquen"].',
+        },
+        neighborhood: {
+          type: 'string',
+          description:
+            'El barrio exacto tal como lo mencionó el cliente. ' +
+            'Enviar SIEMPRE que el cliente mencione una zona específica. ' +
+            'Ej: cliente dice "en el Chico" → neighborhood: "El Chico". ' +
+            'Este campo es el respaldo de zones — envía ambos.',
         },
         city: {
           type: 'string',
@@ -102,17 +113,22 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
     description:
       'Envía las fotos de un inmueble al cliente por WhatsApp. ' +
       'Úsala cuando el cliente pida fotos o quiera ver el inmueble. ' +
-      'Solo envía máximo 3 fotos para no saturar.',
+      'Solo envía máximo 3 fotos para no saturar. ' +
+      'REGLA CRÍTICA: property_id debe ser el ID EXACTO devuelto por search_properties. ' +
+      'NUNCA escribas un property_id de memoria ni lo inventes.',
     input_schema: {
       type: 'object',
       properties: {
         client_phone: {
           type: 'string',
-          description: 'Teléfono del cliente en formato +57XXXXXXXXXX',
+          description: 'Teléfono del cliente en formato +57XXXXXXXXXX. El sistema lo corrige automáticamente.',
         },
         property_id: {
           type: 'string',
-          description: 'ID del inmueble cuyas fotos se enviarán',
+          description:
+            'ID EXACTO del inmueble tal como lo devolvió search_properties en esta conversación. ' +
+            'NUNCA inventes ni escribas un ID de memoria. ' +
+            'Si no tienes un ID real de search_properties, NO llames esta tool.',
         },
       },
       required: ['client_phone', 'property_id'],

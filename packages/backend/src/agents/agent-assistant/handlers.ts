@@ -44,6 +44,23 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     min_bedrooms?: number; min_bathrooms?: number;
   };
 
+  // Seguridad: si zones llega vacío pero neighborhood está presente,
+  // construir zones automáticamente para no perder el filtro de zona.
+  const zonesWithFallback = (() => {
+    const raw = Array.isArray(zones) ? zones.filter(Boolean) : [];
+    if (raw.length > 0) return raw;
+    if (neighborhood) {
+      // Añadir variaciones: con/sin tildes, con/sin "El/La" para máxima cobertura
+      const base = neighborhood.trim();
+      const sinArticulo = base.replace(/^(el |la |los |las )/i, '').trim();
+      const conEl       = `El ${sinArticulo}`;
+      const variants    = [...new Set([base, sinArticulo, conEl, base.toLowerCase()])];
+      console.log(`🔍 zones vacío — construido desde neighborhood "${neighborhood}":`, variants);
+      return variants;
+    }
+    return [];
+  })();
+
   console.log('==========================================');
   console.log('SEARCH_PROPERTIES LLAMADO');
   console.log('Params:', JSON.stringify({
@@ -101,20 +118,11 @@ export const handleSearchProperties: ToolHandler = async (input) => {
     console.log('Filtro tipo:', tipoNorm);
   }
 
-  // Normalizar zones: el modelo puede enviarla como string o como array.
-  // Siempre trabajar con un array para el resto de la lógica.
-  const rawZones = zones as string | string[] | undefined;
-  const zonesNorm: string[] = Array.isArray(rawZones)
-    ? rawZones
-    : rawZones
-    ? [rawZones]
-    : [];
-
-  console.log('zonesArray construido:', JSON.stringify(zonesNorm));
+  console.log('zonesArray final (con fallback):', JSON.stringify(zonesWithFallback));
   console.log('neighborhood recibido:', neighborhood);
 
-  // Zonas activas: zones[] tiene prioridad sobre neighborhood.
-  const activeZones = zonesNorm.length > 0 ? zonesNorm : (neighborhood ? [neighborhood] : []);
+  // Zonas activas: ya vienen con el fallback de neighborhood aplicado.
+  const activeZones = zonesWithFallback;
 
   // CRÍTICO: si hay zonas específicas, filtrar SOLO por esas zonas usando AND.
   // Usar OR a nivel raíz causaba que resultados de otras zonas se colaran.
