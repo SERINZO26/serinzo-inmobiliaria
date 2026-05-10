@@ -470,12 +470,16 @@ export const handleCancelAppointment: ToolHandler = async (input) => {
 // REAGENDADA, NO_ASISTIO) para que el cliente pueda reagendar cualquier cita activa.
 
 export const handleFindAppointment: ToolHandler = async (input) => {
+  console.log('🔍 FIND_APPOINTMENT LLAMADO');
+
   const { client_name, client_phone, property_name, approximate_date } = input as {
     client_name?: string;
     client_phone?: string;
     property_name?: string;
     approximate_date?: string;
   };
+
+  console.log('🔍 params:', JSON.stringify({ client_name, client_phone, property_name, approximate_date }, null, 2));
 
   console.log('=== BUSCANDO CITA ===');
   console.log('Parámetros:', JSON.stringify({ client_name, client_phone, property_name, approximate_date }, null, 2));
@@ -562,6 +566,12 @@ export const handleFindAppointment: ToolHandler = async (input) => {
     inmueble: a.property.title,
     fecha:    a.scheduledAt.toISOString(),
     status:   a.status,
+  })));
+  console.log('🔍 Resultados:', appointments.map((a) => ({
+    id:      a.id,
+    cliente: a.client.name,
+    fecha:   a.scheduledAt,
+    status:  a.status,
   })));
   console.log('=== FIN BÚSQUEDA CITA ===');
 
@@ -815,6 +825,9 @@ export async function handleLogConversationSummary(
 // Si se cancela  → notifica al agente con el motivo.
 
 export const handleUpdateAppointmentStatus: ToolHandler = async (input) => {
+  console.log('🔄 UPDATE_APPOINTMENT_STATUS LLAMADO');
+  console.log('🔄 params completos:', JSON.stringify(input, null, 2));
+
   const { appointment_id, status: rawStatus, reason } = input as {
     appointment_id: string;
     status: string;   // string para tolerar cualquier casing que envíe el modelo
@@ -859,6 +872,7 @@ export const handleUpdateAppointmentStatus: ToolHandler = async (input) => {
     });
 
     console.log('✅ Estado actualizado en BD:', appointment.status);
+    console.log('🔄 Resultado BD:', JSON.stringify(appointment, null, 2));
 
     // Notificar al agente inmobiliario
     if (appointment.agent.phone) {
