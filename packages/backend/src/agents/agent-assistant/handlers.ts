@@ -8,7 +8,7 @@
  */
 
 import { prisma } from '../../lib/prisma';
-import { sendWhatsAppMedia } from '../../services/messaging';
+import { sendWhatsAppMedia, sendWhatsAppText } from '../../services/messaging';
 import type { ToolHandler } from '../shared/base-agent';
 
 // ─── Selector seguro de inmueble (excluye datos del propietario) ──────────────
@@ -808,6 +808,60 @@ export async function handleLogConversationSummary(
   return { success: true, logged: true, client_id: client_id ?? null };
 }
 
+// ─── update_appointment_status ────────────────────────────────────────────────
+// Confirma o cancela una cita en respuesta a un mensaje del cliente.
+// Si se confirma → notifica al agente por WhatsApp.
+// Si se cancela  → notifica al agente con el motivo.
+
+export const handleUpdateAppointmentStatus: ToolHandler = async (input) => {
+  const { appointment_id, status, reason } = input as {
+    appointment_id: string;
+    status: 'CONFIRMADA' | 'CANCELADA';
+    reason?: string;
+  };
+
+  try {
+    const appointment = await prisma.appointment.update({
+      where: { id: appointment_id },
+      data: {
+        status,
+        ...(status === 'CANCELADA'  ? { cancellationReason: reason ?? null } : {}),
+        ...(status === 'CONFIRMADA' ? { confirmationSent: true }             : {}),
+      },
+      include: {
+        client:   { select: { name: true } },
+        property: { select: { title: true } },
+        agent:    { select: { name: true, phone: true } },
+      },
+    });
+
+    // Notificar al agente inmobiliario
+    if (appointment.agent.phone) {
+      const agentMsg =
+        status === 'CONFIRMADA'
+          ? `✅ Cita confirmada\n\nCliente: ${appointment.client.name}\n` +
+            `Inmueble: ${appointment.property.title}\n` +
+            `Fecha: ${formatColombia(appointment.scheduledAt)}`
+          : `❌ Cita cancelada\n\nCliente: ${appointment.client.name}\n` +
+            `Inmueble: ${appointment.property.title}\n` +
+            `Motivo: ${reason ?? 'No especificado'}`;
+
+      try {
+        await sendWhatsAppText(appointment.agent.phone, agentMsg);
+      } catch (notifErr) {
+        // No detener el flujo si la notificación al agente falla
+        console.error('[handlers] Error notificando al agente sobre cambio de estado:', notifErr);
+      }
+    }
+
+    console.log(`[handlers] Cita ${appointment_id} → ${status}`);
+    return { success: true, status, appointment_id };
+  } catch (err) {
+    console.error('[handlers] Error actualizando estado de cita:', err);
+    return { success: false, error: 'No se pudo actualizar el estado de la cita.' };
+  }
+};
+
 // ─── Mapa de handlers para inyectar en el agente ─────────────────────────────
 
 export const TOOL_HANDLERS: Record<string, ToolHandler> = {
@@ -818,8 +872,9 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   find_appointment:       handleFindAppointment,
   schedule_appointment:   handleScheduleAppointment,
   reschedule_appointment: handleRescheduleAppointment,
-  cancel_appointment:     handleCancelAppointment,
-  flag_special_case:      handleFlagSpecialCase,
+  cancel_appointment:        handleCancelAppointment,
+  update_appointment_status: handleUpdateAppointmentStatus,
+  flag_special_case:         handleFlagSpecialCase,
   save_client:            handleSaveClient,
   update_client_interest: handleUpdateClientInterest,
   get_client_history:     handleGetClientHistory,

@@ -21,7 +21,7 @@ import { settingsRouter } from './api/settings/router';
 import { whatsappWebhookRouter } from './api/webhooks/whatsapp';
 import { projectsRouter } from './api/projects/router';
 import { blogRouter } from './api/blog/router';
-import { initScheduler } from './services/scheduler';
+import { initScheduler, sendAppointmentReminderById } from './services/scheduler';
 import { requireAuth } from './lib/auth';
 import { assistantAgent } from './agents/agent-assistant';
 
@@ -69,6 +69,18 @@ app.delete('/api/v1/debug/session/:phone', requireAuth, (req: Request, res: Resp
 app.get('/api/v1/debug/sessions', requireAuth, (_req: Request, res: Response) => {
   const sessions = assistantAgent.listSessions();
   res.json({ success: true, count: sessions.length, sessions });
+});
+
+// POST /api/v1/debug/send-reminder/:appointmentId — envía recordatorio 24h sin esperar el cron
+// Útil para probar el flujo completo (mensaje → cliente responde → Sofía actualiza estado).
+app.post('/api/v1/debug/send-reminder/:appointmentId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await sendAppointmentReminderById(req.params.appointmentId);
+    res.json(result);
+  } catch (err) {
+    console.error('[debug] Error enviando recordatorio:', err);
+    res.status(500).json({ success: false, error: String(err) });
+  }
 });
 
 // 404 para rutas desconocidas

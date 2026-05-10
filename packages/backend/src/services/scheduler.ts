@@ -14,7 +14,7 @@
  */
 
 import cron from 'node-cron';
-import { Prisma, PaymentStatus, RentalContractStatus, LogStatus, Role, UserStatus } from '../lib/generated/prisma';
+import { Prisma, PaymentStatus, RentalContractStatus, LogStatus, Role, UserStatus, AppointmentStatus } from '../lib/generated/prisma';
 import { prisma } from '../lib/prisma';
 import { sendEmail, sendWhatsAppText } from './messaging';
 
@@ -426,6 +426,169 @@ async function remindPendingPayments(): Promise<void> {
   }
 }
 
+// ─── Job 5: Recordatorio de citas 24h antes ──────────────────────────────────
+
+/**
+ * Formatea una fecha en zona horaria Colombia para los mensajes de recordatorio.
+ * Ej: "martes 14 de mayo de 2026"
+ */
+function formatFechaColombia(date: Date): string {
+  return date.toLocaleDateString('es-CO', {
+    timeZone: 'America/Bogota',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Formatea la hora en zona horaria Colombia.
+ * Ej: "10:00 a. m."
+ */
+function formatHoraColombia(date: Date): string {
+  return date.toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/**
+ * Construye el mensaje de recordatorio interactivo para WhatsApp.
+ * Incluye opciones de respuesta: CONFIRMO / REAGENDO / CANCELO.
+ */
+function buildReminderMessage(data: {
+  clientName:   string;
+  propertyTitle: string;
+  scheduledAt:  Date;
+  agentName:    string;
+}): string {
+  const fecha = formatFechaColombia(data.scheduledAt);
+  const hora  = formatHoraColombia(data.scheduledAt);
+
+  return (
+    `Hola ${data.clientName} 👋\n\n` +
+    `Te recordamos tu visita programada para mañana:\n\n` +
+    `🏠 *${data.propertyTitle}*\n` +
+    `📅 ${fecha}\n` +
+    `🕐 ${hora}\n` +
+    `👤 Agente: ${data.agentName}\n\n` +
+    `¿Puedes confirmar tu asistencia?\n` +
+    `Responde con una de estas opciones:\n\n` +
+    `✅ *CONFIRMO* — para confirmar tu visita\n` +
+    `📅 *REAGENDO* — si necesitas cambiar la fecha\n` +
+    `❌ *CANCELO* — si no puedes asistir\n\n` +
+    `¡Te esperamos!`
+  );
+}
+
+/**
+ * Envía el recordatorio de una cita específica por su ID.
+ * Exportado para el endpoint de prueba `/debug/send-reminder/:id`.
+ */
+export async function sendAppointmentReminderById(appointmentId: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    include: {
+      client:   { select: { name: true, phone: true } },
+      property: { select: { title: true } },
+      agent:    { select: { name: true } },
+    },
+  });
+
+  if (!appointment) return { success: false, message: 'Cita no encontrada' };
+  if (!appointment.client.phone) return { success: false, message: 'El cliente no tiene teléfono registrado' };
+
+  const mensaje = buildReminderMessage({
+    clientName:    appointment.client.name,
+    propertyTitle: appointment.property.title,
+    scheduledAt:   appointment.scheduledAt,
+    agentName:     appointment.agent.name,
+  });
+
+  await sendWhatsAppText(appointment.client.phone, mensaje);
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data:  { reminder24hSent: true },
+  });
+
+  console.log(`[scheduler] Recordatorio 24h enviado a ${appointment.client.name} (${appointment.client.phone})`);
+  return { success: true, message: `Recordatorio enviado a ${appointment.client.name}` };
+}
+
+/**
+ * Busca citas que ocurren en las próximas 23–25 horas con reminder24hSent=false
+ * y envía el recordatorio interactivo al cliente por WhatsApp.
+ * Se ejecuta cada hora.
+ */
+async function sendAppointmentReminders(): Promise<void> {
+  const now = new Date();
+
+  // Ventana: 23h–25h desde ahora (2h de margen para no perderse ninguna cita)
+  const from = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+  const to   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+
+  const statesToSkip: AppointmentStatus[] = ['CANCELADA', 'REALIZADA', 'NO_ASISTIO'];
+
+  try {
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        scheduledAt:     { gte: from, lte: to },
+        reminder24hSent: false,
+        status:          { notIn: statesToSkip },
+      },
+      include: {
+        client:   { select: { name: true, phone: true } },
+        property: { select: { title: true } },
+        agent:    { select: { name: true } },
+      },
+    });
+
+    if (appointments.length === 0) return;
+
+    console.log(
+      `[scheduler] sendAppointmentReminders — ${appointments.length} recordatorio(s) pendiente(s) | ${now.toISOString()}`,
+    );
+
+    for (const appt of appointments) {
+      if (!appt.client.phone) {
+        console.warn(`[scheduler] Cita ${appt.id}: cliente sin teléfono, saltando`);
+        continue;
+      }
+
+      try {
+        const mensaje = buildReminderMessage({
+          clientName:    appt.client.name,
+          propertyTitle: appt.property.title,
+          scheduledAt:   appt.scheduledAt,
+          agentName:     appt.agent.name,
+        });
+
+        await sendWhatsAppText(appt.client.phone, mensaje);
+
+        await prisma.appointment.update({
+          where: { id: appt.id },
+          data:  { reminder24hSent: true },
+        });
+
+        console.log(
+          `[scheduler] Recordatorio 24h enviado — cita ${appt.id} | cliente: ${appt.client.name}`,
+        );
+      } catch (err) {
+        console.error(`[scheduler] Error enviando recordatorio cita ${appt.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error('[scheduler] Error en sendAppointmentReminders:', err);
+  }
+}
+
 // ─── Job 4: Recordatorio semanal de contratos por vencer (lunes 8am) ──────────
 
 /**
@@ -654,12 +817,19 @@ export function initScheduler(): void {
     timezone: 'America/Bogota',
   });
 
+  // Job 5 — cada hora en punto: recordatorio de citas 24h antes
+  // Busca citas en ventana 23-25h y envía mensaje interactivo al cliente por WhatsApp
+  cron.schedule('0 * * * *', sendAppointmentReminders, {
+    timezone: 'America/Bogota',
+  });
+
   console.log(
-    '[scheduler] 4 jobs registrados — ' +
+    '[scheduler] 5 jobs registrados — ' +
     'markOverduePayments (07:50 diario) | ' +
     'alertExpiringContracts (08:00 diario) | ' +
     'remindPendingPayments (08:00 lunes) | ' +
-    'remindExpiringContractsWeekly (08:00 lunes) — timezone: America/Bogota',
+    'remindExpiringContractsWeekly (08:00 lunes) | ' +
+    'sendAppointmentReminders (cada hora) — timezone: America/Bogota',
   );
 }
 
@@ -671,4 +841,6 @@ export {
   alertExpiringContracts,
   remindPendingPayments,
   remindExpiringContractsWeekly,
+  sendAppointmentReminders,
+  // sendAppointmentReminderById ya se exporta como named export arriba
 };

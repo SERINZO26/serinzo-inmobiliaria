@@ -262,6 +262,35 @@ export const ASSISTANT_TOOLS: AgentTool[] = [
   },
 
   {
+    name: 'update_appointment_status',
+    description:
+      'Actualiza el estado de una cita a CONFIRMADA o CANCELADA. ' +
+      'Usar cuando el cliente responde al recordatorio de visita. ' +
+      'Siempre obtener el appointment_id con find_appointment primero. ' +
+      'Si se confirma → notifica automáticamente al agente por WhatsApp. ' +
+      'Si se cancela → también notifica al agente con el motivo.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        appointment_id: {
+          type: 'string',
+          description: 'ID de la cita a actualizar — obtenido con find_appointment',
+        },
+        status: {
+          type: 'string',
+          enum: ['CONFIRMADA', 'CANCELADA'],
+          description: 'Nuevo estado: CONFIRMADA cuando el cliente confirma, CANCELADA cuando cancela',
+        },
+        reason: {
+          type: 'string',
+          description: 'Motivo de cancelación (obligatorio si status es CANCELADA)',
+        },
+      },
+      required: ['appointment_id', 'status'],
+    },
+  },
+
+  {
     name: 'flag_special_case',
     description:
       'Marca una situación especial donde el cliente no puede en los horarios disponibles. ' +
