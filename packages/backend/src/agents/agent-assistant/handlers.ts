@@ -8,6 +8,7 @@
  */
 
 import { prisma } from '../../lib/prisma';
+import { AppointmentStatus } from '../../lib/generated/prisma';
 import { sendWhatsAppMedia, sendWhatsAppText } from '../../services/messaging';
 import type { ToolHandler } from '../shared/base-agent';
 
@@ -814,19 +815,41 @@ export async function handleLogConversationSummary(
 // Si se cancela  → notifica al agente con el motivo.
 
 export const handleUpdateAppointmentStatus: ToolHandler = async (input) => {
-  const { appointment_id, status, reason } = input as {
+  const { appointment_id, status: rawStatus, reason } = input as {
     appointment_id: string;
-    status: 'CONFIRMADA' | 'CANCELADA';
+    status: string;   // string para tolerar cualquier casing que envíe el modelo
     reason?: string;
   };
+
+  console.log('=== UPDATE APPOINTMENT STATUS ===');
+  console.log('appointment_id:', appointment_id);
+  console.log('status (raw):', rawStatus);
+  console.log('reason:', reason);
+
+  // Normalizar a mayúsculas por si el modelo envía "confirmada" en lugar de "CONFIRMADA"
+  const statusUpper = String(rawStatus ?? '').toUpperCase();
+
+  // Mapa explícito al enum de Prisma — garantiza que el valor sea válido
+  const statusMap: Record<string, AppointmentStatus> = {
+    CONFIRMADA: AppointmentStatus.CONFIRMADA,
+    CANCELADA:  AppointmentStatus.CANCELADA,
+  };
+
+  const prismaStatus = statusMap[statusUpper];
+  if (!prismaStatus) {
+    console.error(`[handlers] Status inválido recibido: "${rawStatus}"`);
+    return { success: false, error: `Estado inválido: "${rawStatus}". Usar CONFIRMADA o CANCELADA.` };
+  }
+
+  console.log('status (normalizado):', prismaStatus);
 
   try {
     const appointment = await prisma.appointment.update({
       where: { id: appointment_id },
       data: {
-        status,
-        ...(status === 'CANCELADA'  ? { cancellationReason: reason ?? null } : {}),
-        ...(status === 'CONFIRMADA' ? { confirmationSent: true }             : {}),
+        status: prismaStatus,
+        ...(prismaStatus === AppointmentStatus.CANCELADA  ? { cancellationReason: reason ?? null } : {}),
+        ...(prismaStatus === AppointmentStatus.CONFIRMADA ? { confirmationSent: true }             : {}),
       },
       include: {
         client:   { select: { name: true } },
@@ -835,10 +858,12 @@ export const handleUpdateAppointmentStatus: ToolHandler = async (input) => {
       },
     });
 
+    console.log('✅ Estado actualizado en BD:', appointment.status);
+
     // Notificar al agente inmobiliario
     if (appointment.agent.phone) {
       const agentMsg =
-        status === 'CONFIRMADA'
+        prismaStatus === AppointmentStatus.CONFIRMADA
           ? `✅ Cita confirmada\n\nCliente: ${appointment.client.name}\n` +
             `Inmueble: ${appointment.property.title}\n` +
             `Fecha: ${formatColombia(appointment.scheduledAt)}`
@@ -848,17 +873,17 @@ export const handleUpdateAppointmentStatus: ToolHandler = async (input) => {
 
       try {
         await sendWhatsAppText(appointment.agent.phone, agentMsg);
+        console.log('[handlers] Agente notificado:', appointment.agent.name);
       } catch (notifErr) {
         // No detener el flujo si la notificación al agente falla
         console.error('[handlers] Error notificando al agente sobre cambio de estado:', notifErr);
       }
     }
 
-    console.log(`[handlers] Cita ${appointment_id} → ${status}`);
-    return { success: true, status, appointment_id };
+    return { success: true, status: appointment.status, appointment_id };
   } catch (err) {
     console.error('[handlers] Error actualizando estado de cita:', err);
-    return { success: false, error: 'No se pudo actualizar el estado de la cita.' };
+    return { success: false, error: `No se pudo actualizar la cita: ${String(err)}` };
   }
 };
 
