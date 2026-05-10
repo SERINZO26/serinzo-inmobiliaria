@@ -254,12 +254,27 @@ export class AssistantAgent extends BaseAgent {
     return session;
   }
 
-  /** Elimina la sesión en memoria de un número (para testing o soporte). */
-  clearSession(phone: string): boolean {
+  /** Elimina la sesión en memoria de un número y cierra la conversación en BD. */
+  async clearSession(phone: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
     const existed = this.sessions.has(normalized);
     this.sessions.delete(normalized);
     console.log(`[agent-assistant] clearSession: ${normalized} — ${existed ? 'eliminada' : 'no existía'}`);
+
+    // También cerrar la conversación activa en BD para que no se restaure
+    try {
+      const updated = await prisma.conversation.updateMany({
+        where: {
+          contactPhone: normalized,
+          endedAt:      null,          // solo conversaciones abiertas
+        },
+        data: { endedAt: new Date() },
+      });
+      console.log(`[agent-assistant] clearSession: ${updated.count} conversación(es) cerrada(s) en BD`);
+    } catch (err) {
+      console.error('[agent-assistant] clearSession: error cerrando conversaciones en BD:', err);
+    }
+
     return existed;
   }
 

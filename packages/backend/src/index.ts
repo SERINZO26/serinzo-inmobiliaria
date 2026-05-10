@@ -58,10 +58,10 @@ app.use('/api/v1/blog', blogRouter);
 app.use('/api/v1/webhooks/whatsapp', whatsappWebhookRouter);
 
 // ── Endpoints de diagnóstico (solo en desarrollo o con auth) ─────────────────
-// DELETE /api/v1/debug/session/:phone — elimina sesión en memoria de Sofía
-app.delete('/api/v1/debug/session/:phone', requireAuth, (req: Request, res: Response) => {
+// DELETE /api/v1/debug/session/:phone — elimina sesión en memoria de Sofía y cierra la BD
+app.delete('/api/v1/debug/session/:phone', requireAuth, async (req: Request, res: Response) => {
   const phone = req.params.phone;
-  const existed = assistantAgent.clearSession(phone);
+  const existed = await assistantAgent.clearSession(phone);
   res.json({ success: true, phone, existed, message: existed ? 'Sesión eliminada' : 'No había sesión activa' });
 });
 
