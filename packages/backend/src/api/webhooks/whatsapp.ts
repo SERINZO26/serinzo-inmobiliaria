@@ -141,6 +141,7 @@ whatsappWebhookRouter.post('/', async (req: Request, res: Response) => {
           const appointment = await prisma.appointment.findFirst({
             where: {
               status: { in: ['PENDIENTE', 'REAGENDADA'] },
+              reminder24hSent: true,   // solo citas que recibieron el recordatorio
               client: { phone: { contains: phoneDigits } },
               scheduledAt: { gte: new Date() },
             },
