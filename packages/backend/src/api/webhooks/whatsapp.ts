@@ -17,6 +17,7 @@ import { Router, Request, Response } from 'express';
 import twilio from 'twilio';
 import { assistantAgent } from '../../agents/agent-assistant';
 import { sendWhatsAppText } from '../../services/messaging';
+import { prisma } from '../../lib/prisma';
 
 export const whatsappWebhookRouter = Router();
 
@@ -120,6 +121,128 @@ whatsappWebhookRouter.post('/', async (req: Request, res: Response) => {
           console.log('[webhook] Mensaje vacío ignorado');
           return;
         }
+
+        // ── Pre-filtro: interceptar respuestas al recordatorio de cita ────────
+        // Se resuelven directamente en BD sin pasar por el agente IA,
+        // evitando que el historial en memoria confunda el contexto.
+        const confirmKeywords    = ['confirmo', 'confirmar', 'confirma', 'si confirmo', 'sí confirmo'];
+        const rescheduleKeywords = ['reagendo', 'reagendar', 'cambiar cita', 'reprogramar'];
+        const cancelKeywords     = ['cancelo', 'cancelar', 'no puedo', 'no voy'];
+
+        const msgLower    = msgBody.toLowerCase().trim();
+        const isConfirm   = confirmKeywords.some(k => msgLower.includes(k));
+        const isReschedule = rescheduleKeywords.some(k => msgLower.includes(k));
+        const isCancel    = cancelKeywords.some(k => msgLower.includes(k));
+
+        if (isConfirm || isReschedule || isCancel) {
+          // Buscar la cita pendiente más próxima del número entrante
+          const phoneDigits = phone.replace(/\D/g, '').slice(-10);
+
+          const appointment = await prisma.appointment.findFirst({
+            where: {
+              status: { in: ['PENDIENTE', 'REAGENDADA'] },
+              client: { phone: { contains: phoneDigits } },
+              scheduledAt: { gte: new Date() },
+            },
+            include: {
+              client:   { select: { name: true } },
+              property: { select: { title: true } },
+              agent:    { select: { name: true, phone: true } },
+            },
+            orderBy: { scheduledAt: 'asc' },
+          });
+
+          const fmtFecha = (d: Date) =>
+            d.toLocaleDateString('es-CO', {
+              timeZone: 'America/Bogota',
+              weekday: 'long', day: 'numeric', month: 'long',
+            });
+          const fmtHora = (d: Date) =>
+            d.toLocaleTimeString('es-CO', {
+              timeZone: 'America/Bogota',
+              hour: '2-digit', minute: '2-digit',
+            });
+
+          if (appointment) {
+            if (isConfirm) {
+              await prisma.appointment.update({
+                where: { id: appointment.id },
+                data:  { status: 'CONFIRMADA', confirmationSent: true },
+              });
+
+              if (appointment.agent?.phone) {
+                await sendWhatsAppText(
+                  appointment.agent.phone,
+                  `✅ Cita confirmada\n\nCliente: ${appointment.client.name}\n` +
+                  `Inmueble: ${appointment.property.title}\n` +
+                  `Fecha: ${fmtFecha(appointment.scheduledAt)}\n` +
+                  `Hora: ${fmtHora(appointment.scheduledAt)}`,
+                );
+              }
+
+              await sendWhatsAppText(
+                phone,
+                `✅ ¡Perfecto ${appointment.client.name}! Tu visita al ${appointment.property.title} quedó confirmada.\n\n` +
+                `📅 ${fmtFecha(appointment.scheduledAt)}\n` +
+                `🕐 ${fmtHora(appointment.scheduledAt)}\n\n` +
+                `¡Te esperamos! 😊`,
+              );
+
+              console.log(`✅ [webhook] Cita ${appointment.id} confirmada directamente para ${appointment.client.name}`);
+              return;
+            }
+
+            if (isCancel) {
+              await prisma.appointment.update({
+                where: { id: appointment.id },
+                data:  { status: 'CANCELADA', cancellationReason: 'Cancelada por el cliente via WhatsApp' },
+              });
+
+              await sendWhatsAppText(
+                phone,
+                `Entendido ${appointment.client.name}, cancelamos tu visita al ${appointment.property.title}. ` +
+                `Si deseas reprogramarla en el futuro, escríbenos. ¡Hasta pronto! 😊`,
+              );
+
+              if (appointment.agent?.phone) {
+                await sendWhatsAppText(
+                  appointment.agent.phone,
+                  `❌ Cita cancelada\n\nCliente: ${appointment.client.name}\n` +
+                  `Inmueble: ${appointment.property.title}`,
+                );
+              }
+
+              console.log(`❌ [webhook] Cita ${appointment.id} cancelada para ${appointment.client.name}`);
+              return;
+            }
+
+            if (isReschedule) {
+              await prisma.appointment.update({
+                where: { id: appointment.id },
+                data:  { status: 'REAGENDADA' },
+              });
+
+              await sendWhatsAppText(
+                phone,
+                `Entendido ${appointment.client.name}, quieres reagendar tu visita al ${appointment.property.title}.\n\n` +
+                `¿Para qué fecha y hora te quedaría mejor?`,
+              );
+
+              console.log(`📅 [webhook] Reagendamiento iniciado para ${appointment.client.name}`);
+              return;
+            }
+          } else {
+            // Keyword detectada pero sin cita pendiente — respuesta directa sin agente
+            await sendWhatsAppText(
+              phone,
+              `Hola! No encontré citas pendientes a tu nombre. ¿En qué puedo ayudarte?`,
+            );
+            console.log(`[webhook] Keyword de cita detectada pero sin cita pendiente para ${phone}`);
+            return;
+          }
+        }
+
+        // Sin keyword de cita o no interceptado — pasar al agente normalmente
         agentResponse = await assistantAgent.processMessage(phone, msgBody);
       }
 
