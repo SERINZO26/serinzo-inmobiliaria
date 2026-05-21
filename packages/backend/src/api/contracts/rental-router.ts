@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { Prisma, RentalContractStatus, PropertyStatus, PaymentStatus } from '../../lib/generated/prisma';
+import { Prisma, RentalContractStatus, PropertyStatus, PaymentStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';

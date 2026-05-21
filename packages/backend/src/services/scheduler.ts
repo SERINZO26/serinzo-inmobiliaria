@@ -14,7 +14,7 @@
  */
 
 import cron from 'node-cron';
-import { Prisma, PaymentStatus, RentalContractStatus, LogStatus, Role, UserStatus, AppointmentStatus } from '../lib/generated/prisma';
+import { Prisma, PaymentStatus, RentalContractStatus, LogStatus, Role, UserStatus, AppointmentStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { sendEmail, sendWhatsAppText } from './messaging';
 

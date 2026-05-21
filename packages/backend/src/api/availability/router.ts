@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { AppointmentStatus } from '../../lib/generated/prisma';
+import { AppointmentStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';

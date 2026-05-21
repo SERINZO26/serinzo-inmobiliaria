@@ -44,5 +44,5 @@ Thumbs.db
 # Claude Code (carpeta interna del agente, no versionar)
 .claude/
 
-# Prisma — cliente generado (se regenera con prisma generate)
-packages/backend/src/lib/generated/
+# Prisma — cliente generado en src/lib/generated (path antiguo, ya no se usa)
+# El cliente ahora se genera en node_modules/@prisma/client (output por defecto)

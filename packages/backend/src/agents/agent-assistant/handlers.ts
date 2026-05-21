@@ -8,7 +8,7 @@
  */
 
 import { prisma } from '../../lib/prisma';
-import { AppointmentStatus } from '../../lib/generated/prisma';
+import { AppointmentStatus } from '@prisma/client';
 import { sendWhatsAppMedia, sendWhatsAppText } from '../../services/messaging';
 import type { ToolHandler } from '../shared/base-agent';
 

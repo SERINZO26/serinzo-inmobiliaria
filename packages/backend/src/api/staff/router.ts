@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../lib/prisma';
 import { requireAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
-import { Role } from '../../lib/generated/prisma';
+import { Role } from '@prisma/client';
 
 export const staffRouter = Router();
 

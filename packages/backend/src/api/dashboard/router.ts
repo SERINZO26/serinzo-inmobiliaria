@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PropertyStatus, ClientStatus, AppointmentStatus } from '../../lib/generated/prisma';
+import { PropertyStatus, ClientStatus, AppointmentStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { requireAuth } from '../../lib/auth';
 import { success, asyncHandler } from '../../lib/response';

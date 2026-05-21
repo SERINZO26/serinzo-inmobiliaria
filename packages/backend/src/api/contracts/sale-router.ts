@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
-import { Prisma, SaleStatus, PropertyStatus } from '../../lib/generated/prisma';
+import { Prisma, SaleStatus, PropertyStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { requireAuth, requireAgentOrAdmin } from '../../lib/auth';
 import { success, error, notFound, asyncHandler } from '../../lib/response';
