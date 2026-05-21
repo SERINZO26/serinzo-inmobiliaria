@@ -77,7 +77,7 @@ projectsRouter.post('/', requireAgentOrAdmin, asyncHandler(async (req, res) => {
       ...rest,
       priceFrom,
       deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
-    },
+    } as any,
   });
   return success(res, project, 201);
 }));

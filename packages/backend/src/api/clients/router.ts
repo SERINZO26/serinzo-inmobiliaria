@@ -154,7 +154,7 @@ clientsRouter.post(
       data: {
         ...parsed.data,
         assignedAgentId: parsed.data.assignedAgentId || req.user!.id,
-      },
+      } as any,
     });
 
     // Notificar al admin en background (no bloquea la respuesta)

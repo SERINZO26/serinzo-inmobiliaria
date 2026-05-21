@@ -71,7 +71,7 @@ blogRouter.post('/', requireAgentOrAdmin, asyncHandler(async (req, res) => {
 
   const user  = (req as any).user;
   const post  = await prisma.blogPost.create({
-    data: { ...parsed.data, authorId: user?.id },
+    data: { ...parsed.data, authorId: user?.id } as any,
   });
   return success(res, post, 201);
 }));

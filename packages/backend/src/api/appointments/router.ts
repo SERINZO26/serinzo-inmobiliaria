@@ -220,7 +220,7 @@ appointmentsRouter.post(
         scheduledAt,
         isSpecialCase,
         status: AppointmentStatus.PENDIENTE,
-      },
+      } as any,
       include: {
         client: { select: { id: true, name: true } },
         property: { select: { id: true, title: true } },

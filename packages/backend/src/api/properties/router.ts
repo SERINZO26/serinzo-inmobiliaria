@@ -347,7 +347,7 @@ propertiesRouter.post(
         ...(areaBuiltM2 !== undefined && { areaBuiltM2 }),
         addedById: req.user!.id,
         assignedAgentId: rest.assignedAgentId || req.user!.id,
-      },
+      } as any,
       include: { features: true },
     });
 
