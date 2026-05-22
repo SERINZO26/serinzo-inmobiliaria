@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Building2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,11 +40,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="mb-8 flex flex-col items-center gap-2">
-        <div className="bg-slate-800 text-white p-3 rounded-xl">
-          <Building2 className="h-7 w-7" />
-        </div>
-        <h1 className="text-2xl font-bold text-slate-800">Serinzo Inmobiliaria</h1>
+      <div className="mb-8 flex flex-col items-center gap-3">
+        <Image
+          src="/logo-serinzo.png"
+          alt="Serinzo Inmobiliaria"
+          width={180}
+          height={72}
+          priority
+          className="object-contain"
+        />
         <p className="text-slate-500 text-sm">Panel de administración</p>
       </div>
 
