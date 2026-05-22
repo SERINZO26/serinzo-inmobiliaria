@@ -6,7 +6,12 @@ import { z } from 'zod';
 config({ override: true });
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().url('DATABASE_URL debe ser una URL válida de PostgreSQL'),
+  DATABASE_URL: z
+    .string()
+    .refine(
+      (val) => val.startsWith('postgresql://') || val.startsWith('postgres://'),
+      'DATABASE_URL debe comenzar con postgresql:// o postgres://',
+    ),
   API_SECRET: z
     .string()
     .min(32, 'API_SECRET debe tener al menos 32 caracteres'),
