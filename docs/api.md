@@ -37,6 +37,36 @@ Authorization: Bearer <token>
 
 ---
 
+### Contacto `/api/v1/contact`
+
+#### `POST /api/v1/contact` — Formulario de contacto del sitio público
+
+**Público — no requiere autenticación.**
+
+Recibe el formulario de contacto del sitio web. Guarda el contacto como
+cliente en el CRM (`source: WEB`) y envía un email con Resend a la
+inmobiliaria (`CONTACT_EMAIL_TO`, por defecto `info@serinzo.com`).
+Si el envío del email falla, el lead igual queda guardado en el CRM.
+
+**Body** (JSON):
+
+| Campo     | Tipo   | Requerido | Descripción                          |
+|-----------|--------|-----------|--------------------------------------|
+| `name`    | string | Sí        | Nombre del contacto (mín. 2 chars)   |
+| `phone`   | string | Sí        | Teléfono (mín. 7 dígitos)            |
+| `email`   | string | No        | Email del contacto                   |
+| `message` | string | Sí        | Mensaje del formulario               |
+
+**Response** `201`:
+
+```json
+{ "success": true, "data": { "id": "clxxxx" } }
+```
+
+**Errores**: `400` con `{ "success": false, "error": "mensaje legible" }` si la validación falla.
+
+---
+
 ### Staff `/api/staff`
 
 > Por documentar en Etapa 1

@@ -17,7 +17,8 @@ const NAV_LINKS = [
 ];
 
 const WA_NUMBER = '573182063924';
-const WA_URL = `https://wa.me/${WA_NUMBER}`;
+const WA_MESSAGE = encodeURIComponent('Hola, me interesa conocer más sobre sus inmuebles');
+const WA_URL = `https://wa.me/${WA_NUMBER}?text=${WA_MESSAGE}`;
 
 function Header() {
   const pathname = usePathname();

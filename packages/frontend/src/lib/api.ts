@@ -378,6 +378,13 @@ export const clientsApi = {
     api.delete<ApiResponse<{ message: string }>>(`/api/v1/clients/${id}`),
 };
 
+// ─── Contacto (sitio público, sin auth) ──────────────────────────────────────
+
+export const contactApi = {
+  send: (data: { name: string; email?: string; phone: string; message: string }) =>
+    api.post<ApiResponse<{ id: string }>>('/api/v1/contact', data),
+};
+
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
 export const appointmentsApi = {

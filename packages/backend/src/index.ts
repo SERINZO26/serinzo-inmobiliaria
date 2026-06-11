@@ -21,6 +21,7 @@ import { settingsRouter } from './api/settings/router';
 import { whatsappWebhookRouter } from './api/webhooks/whatsapp';
 import { projectsRouter } from './api/projects/router';
 import { blogRouter } from './api/blog/router';
+import { contactRouter } from './api/contact/router';
 import { initScheduler, sendAppointmentReminderById } from './services/scheduler';
 import { requireAuth } from './lib/auth';
 import { assistantAgent } from './agents/agent-assistant';
@@ -53,6 +54,8 @@ app.use('/api/v1/contracts/ventas', saleRouter);
 app.use('/api/v1/settings', settingsRouter);
 app.use('/api/v1/projects', projectsRouter);
 app.use('/api/v1/blog', blogRouter);
+// Formulario de contacto del sitio público — sin autenticación
+app.use('/api/v1/contact', contactRouter);
 
 // Webhooks externos (sin autenticación JWT — validados por firma de Twilio)
 app.use('/api/v1/webhooks/whatsapp', whatsappWebhookRouter);

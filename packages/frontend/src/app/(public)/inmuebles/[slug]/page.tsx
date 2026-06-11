@@ -17,7 +17,7 @@ import {
   ChevronLeft,
   MapPin,
 } from 'lucide-react';
-import { propertiesApi, clientsApi } from '@/lib/api';
+import { propertiesApi, contactApi } from '@/lib/api';
 import { formatPrice, formatArea, propertyOperationLabel, propertyTypeLabel } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,15 +105,14 @@ function ContactModal({
     }
     setLoading(true);
     try {
-      await clientsApi.create({
+      await contactApi.send({
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
-        source: 'WEB',
-        additionalRequirements: form.message.trim()
+        message: form.message.trim()
           ? `Inmueble: ${propertyTitle}. Mensaje: ${form.message}`
           : `Solicitud de información sobre: ${propertyTitle}`,
-      } as Parameters<typeof clientsApi.create>[0]);
+      });
       setSent(true);
     } catch {
       toast({

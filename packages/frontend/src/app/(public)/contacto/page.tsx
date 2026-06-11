@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Phone, MessageCircle, Mail, MapPin, Clock } from 'lucide-react';
-import { clientsApi } from '@/lib/api';
+import { contactApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -98,13 +98,12 @@ export default function ContactoPage() {
     setLoading(true);
     try {
       const asuntoLabel = ASUNTOS.find((a) => a.value === form.asunto)?.label ?? form.asunto;
-      await clientsApi.create({
+      await contactApi.send({
         name: form.nombre.trim(),
         phone: form.telefono.trim(),
         email: form.email.trim() || undefined,
-        source: 'WEB',
-        additionalRequirements: `Asunto: ${asuntoLabel || 'Sin especificar'}. Mensaje: ${form.mensaje}`,
-      } as Parameters<typeof clientsApi.create>[0]);
+        message: `Asunto: ${asuntoLabel || 'Sin especificar'}. Mensaje: ${form.mensaje}`,
+      });
 
       setSent(true);
       toast({
