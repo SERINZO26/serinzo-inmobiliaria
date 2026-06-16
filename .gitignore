@@ -50,3 +50,6 @@ Thumbs.db
 # Prisma — cliente generado en src/lib/generated (path antiguo, ya no se usa)
 # El cliente ahora se genera en node_modules/@prisma/client (output por defecto)
 packages/backend/src/lib/generated/
+
+.vercel
+.env*
