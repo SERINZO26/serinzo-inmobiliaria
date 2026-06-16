@@ -19,8 +19,8 @@ function fmtInput(n: number): string {
   return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
 }
 
-// UVT 2025 Colombia
-const UVT_2025 = 49799;
+// UVT 2026 Colombia — Resolución DIAN 000238 del 15 de diciembre de 2025
+const UVT_2026 = 52374;
 
 // ── Componente Tab ────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ function SimuladorHipotecario() {
             value={tasaAnual}
             onChange={(e) => setTasaAnual(Number(e.target.value))}
           />
-          <p className="text-xs text-slate-400 mt-1">Tasa promedio Colombia 2025: 13.5%</p>
+          <p className="text-xs text-slate-400 mt-1">Tasa promedio Colombia 2026: 13.5%</p>
         </div>
       </div>
 
@@ -207,7 +207,7 @@ function GastosNotariales() {
   const gastos = useMemo<GastoRow[]>(() => {
     if (!valor) return [];
 
-    const uvts          = valor / UVT_2025;
+    const uvts          = valor / UVT_2026;
     const notaria       = valor * 0.0027;          // 0.27% c/u
     const ivaNotaria    = notaria * 0.19;
     const registro      = valor * 0.005;           // 0.5% comprador
@@ -333,7 +333,7 @@ function GastosNotariales() {
       <div className="flex gap-2.5 p-4 bg-amber-50 border border-amber-100 rounded-xl">
         <Info className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-amber-700 leading-relaxed">
-          Valores aproximados según tarifas vigentes en Colombia 2025 (UVT: ${UVT_2025.toLocaleString('es-CO')}).
+          Valores aproximados según tarifas vigentes en Colombia 2026 (UVT: ${UVT_2026.toLocaleString('es-CO')}).
           Consulta con tu notaría los valores exactos para tu transacción.
         </p>
       </div>
