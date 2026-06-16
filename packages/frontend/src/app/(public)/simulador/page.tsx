@@ -194,57 +194,111 @@ function SimuladorHipotecario() {
 
 // ── TAB 2: Gastos notariales ──────────────────────────────────────────────────
 
+type TipoVendedor = 'natural' | 'juridica';
+
+// Umbral de retención en la fuente para persona natural en compraventa de vivienda.
+// Bajo este valor aplica 1%; igual o por encima, 2.5%.
+const RETENCION_THRESHOLD = 685_000_000;
+
+// Cuota fija de administración de la notaría — se reparte 50/50 entre las partes.
+const ADMIN_NOTARIA = 350000;
+
 interface GastoRow {
-  concepto:   string;
-  comprador:  number;
-  vendedor:   number;
+  concepto:    string;
+  comprador:   number | null;  // null → no aplica (se muestra "—")
+  vendedor:    number | null;
+  vendedorNA?: boolean;        // true → muestra "N/A" en la columna vendedor (concepto solo aplica a persona natural)
 }
 
 function GastosNotariales() {
-  const [valor,     setValor]     = useState(0);
-  const [operacion, setOperacion] = useState<'compraventa' | 'hipoteca'>('compraventa');
+  const [valor,        setValor]        = useState(0);
+  const [tipoVendedor, setTipoVendedor] = useState<TipoVendedor>('natural');
 
   const gastos = useMemo<GastoRow[]>(() => {
     if (!valor) return [];
 
-    const uvts          = valor / UVT_2026;
-    const notaria       = valor * 0.0027;          // 0.27% c/u
-    const ivaNotaria    = notaria * 0.19;
-    const registro      = valor * 0.005;           // 0.5% comprador
-    const beneficencia  = valor * 0.005;           // 0.5%
-    const timbre        = uvts > 20000 ? valor * 0.015 : 0;  // 1.5% si > 20.000 UVT
-    const retencion     = valor * 0.01;            // 1% vendedor
-    const adminNotaria  = 350000;
+    // Gastos compartidos 50/50 entre comprador y vendedor
+    const notariaCadaUno = valor * 0.0027;          // derechos notariales 0.27% c/u (0.54% total)
+    const ivaCadaUno     = notariaCadaUno * 0.19;   // IVA 19% sobre los derechos notariales
+    const adminCadaUno   = ADMIN_NOTARIA / 2;       // cuota fija de administración, dividida 50/50
 
-    if (operacion === 'compraventa') {
-      return [
-        { concepto: 'Notaría (0.27% del valor)',                 comprador: notaria,      vendedor: notaria     },
-        { concepto: 'IVA sobre notaría (19%)',                   comprador: ivaNotaria,   vendedor: ivaNotaria  },
-        { concepto: 'Registro de escritura (0.5%)',              comprador: registro,     vendedor: 0           },
-        { concepto: 'Beneficencia y registro (0.5%)',            comprador: beneficencia, vendedor: 0           },
-        { concepto: 'Cuota de administración notaría',           comprador: adminNotaria, vendedor: 0           },
-        ...(timbre > 0 ? [{ concepto: 'Impuesto de timbre (1.5%)', comprador: timbre / 2, vendedor: timbre / 2 }] : []),
-        { concepto: 'Retención en la fuente (1%)',               comprador: 0,            vendedor: retencion   },
-      ];
-    } else {
-      // Hipoteca
-      return [
-        { concepto: 'Notaría hipoteca (0.27% del valor)',        comprador: notaria,      vendedor: 0           },
-        { concepto: 'IVA sobre notaría (19%)',                   comprador: ivaNotaria,   vendedor: 0           },
-        { concepto: 'Registro hipoteca (0.5%)',                  comprador: registro,     vendedor: 0           },
-        { concepto: 'Beneficencia y registro (0.5%)',            comprador: beneficencia, vendedor: 0           },
-        { concepto: 'Cuota de administración notaría',           comprador: adminNotaria, vendedor: 0           },
-      ];
-    }
-  }, [valor, operacion]);
+    // Gastos del comprador (iguales para persona natural y jurídica)
+    const registroComprador     = valor * 0.005;    // impuesto de registro 0.5%
+    const beneficenciaComprador = valor * 0.01;     // beneficencia y registro 1%
 
-  const totalComprador = gastos.reduce((s, r) => s + r.comprador, 0);
-  const totalVendedor  = gastos.reduce((s, r) => s + r.vendedor,  0);
+    // Retención en la fuente del vendedor.
+    // Persona jurídica: 2.5% siempre. Persona natural: 1% (< umbral) o 2.5% (>= umbral).
+    const retencion =
+      tipoVendedor === 'juridica'
+        ? valor * 0.025
+        : valor < RETENCION_THRESHOLD
+          ? valor * 0.01
+          : valor * 0.025;
+
+    // Impuesto de registro y beneficencia del vendedor: solo persona natural (0.5%).
+    // Persona jurídica no lo paga → se muestra "N/A".
+    const registroVendedor = tipoVendedor === 'natural' ? valor * 0.005 : null;
+
+    return [
+      { concepto: 'Derechos notariales (0.27% c/u)', comprador: notariaCadaUno,        vendedor: notariaCadaUno },
+      { concepto: 'IVA notaría (19% s/notaría)',     comprador: ivaCadaUno,            vendedor: ivaCadaUno     },
+      { concepto: 'Impuesto de registro (0.5%)',     comprador: registroComprador,     vendedor: null           },
+      { concepto: 'Beneficencia (1%)',               comprador: beneficenciaComprador, vendedor: null           },
+      { concepto: 'Cuota adm. notaría',              comprador: adminCadaUno,          vendedor: adminCadaUno   },
+      { concepto: 'Retención en la fuente',          comprador: null,                  vendedor: retencion      },
+      {
+        concepto:   'Impuesto registro vendedor*',
+        comprador:  null,
+        vendedor:   registroVendedor,
+        vendedorNA: tipoVendedor === 'juridica',
+      },
+    ];
+  }, [valor, tipoVendedor]);
+
+  const totalComprador = gastos.reduce((s, r) => s + (r.comprador ?? 0), 0);
+  const totalVendedor  = gastos.reduce((s, r) => s + (r.vendedor  ?? 0), 0);
 
   return (
     <div className="space-y-6">
       {/* Formulario */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="space-y-4">
+        {/* Tipo de vendedor — va ANTES del valor */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            Tipo de vendedor
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              { v: 'natural',  label: 'Persona Natural'   },
+              { v: 'juridica', label: 'Persona Jurídica'  },
+            ] as const).map((opt) => {
+              const activo = tipoVendedor === opt.v;
+              return (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setTipoVendedor(opt.v)}
+                  className={`flex items-center gap-2.5 py-3 px-4 rounded-xl border text-sm font-medium transition-colors ${
+                    activo
+                      ? 'border-[#B8973E] bg-[#B8973E]/10 text-[#B8973E]'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <span
+                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      activo ? 'border-[#B8973E]' : 'border-slate-300'
+                    }`}
+                  >
+                    {activo && <span className="h-2 w-2 rounded-full bg-[#B8973E]" />}
+                  </span>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Valor de la propiedad */}
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-1">
             Valor de la propiedad
@@ -260,19 +314,6 @@ function GastosNotariales() {
               onChange={(e) => setValor(parseNum(e.target.value))}
             />
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1">
-            Tipo de operación
-          </label>
-          <select
-            value={operacion}
-            onChange={(e) => setOperacion(e.target.value as 'compraventa' | 'hipoteca')}
-            className="w-full py-3 px-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B8973E]/50 text-slate-800 font-medium bg-white"
-          >
-            <option value="compraventa">Compraventa</option>
-            <option value="hipoteca">Hipoteca</option>
-          </select>
         </div>
       </div>
 
@@ -293,10 +334,10 @@ function GastosNotariales() {
                   <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4 text-slate-600">{row.concepto}</td>
                     <td className="py-3 px-4 text-right text-slate-800 font-medium">
-                      {row.comprador > 0 ? fmt(row.comprador) : '—'}
+                      {row.comprador != null ? fmt(row.comprador) : '—'}
                     </td>
                     <td className="py-3 px-4 text-right text-slate-800 font-medium">
-                      {row.vendedor > 0 ? fmt(row.vendedor) : '—'}
+                      {row.vendedor != null ? fmt(row.vendedor) : row.vendedorNA ? 'N/A' : '—'}
                     </td>
                   </tr>
                 ))}
@@ -309,6 +350,8 @@ function GastosNotariales() {
               </tbody>
             </table>
           </div>
+
+          <p className="text-xs text-slate-400">* El impuesto de registro del vendedor solo aplica a persona natural.</p>
 
           {/* Resumen totales */}
           <div className="grid grid-cols-2 gap-4">
@@ -333,8 +376,8 @@ function GastosNotariales() {
       <div className="flex gap-2.5 p-4 bg-amber-50 border border-amber-100 rounded-xl">
         <Info className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-amber-700 leading-relaxed">
-          Valores aproximados según tarifas vigentes en Colombia 2026 (UVT: ${UVT_2026.toLocaleString('es-CO')}).
-          Consulta con tu notaría los valores exactos para tu transacción.
+          Valores aproximados según tarifas vigentes Colombia 2026 (UVT: ${UVT_2026.toLocaleString('es-CO')}).
+          Resolución SNR RES-2026-000964-6. Consulta con tu notaría los valores exactos para tu operación.
         </p>
       </div>
     </div>
