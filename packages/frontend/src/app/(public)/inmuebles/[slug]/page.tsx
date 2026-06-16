@@ -251,9 +251,7 @@ export default function PropertyDetailPage() {
     );
   }
 
-  const waMessage = encodeURIComponent(
-    `Hola, vi el inmueble "${property.title}" en su página web y me gustaría más información`
-  );
+  const waMessage = encodeURIComponent(`Hola, me interesa el inmueble ${property.title}`);
   const waUrl = `https://wa.me/${WA_NUMBER}?text=${waMessage}`;
   const mapsUrl = `https://maps.google.com/maps?q=${encodeURIComponent(property.address + ', ' + property.city)}&output=embed`;
 
